@@ -13,7 +13,7 @@ class PSFEx(object):
 
         self._set_maxrad()
         self._set_eigen_list()
-        self._set_grid()
+        #self._set_grid()
 
     def rec(self, row, col):
         """

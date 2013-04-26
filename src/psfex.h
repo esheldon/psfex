@@ -15,21 +15,21 @@ struct psfex_eigens {
     double **rows;
 };
 
-#define PSFEX_NEIGEN(im) ((im)->neigen)
+#define PSFEX_NEIGEN(im) ((im)->eigens->neigen)
 
-#define PSFEX_SIZE_PER(im) ((im)->eigen_size)
-#define PSFEX_NROW_PER(im) ((im)->eigen_nrow)
-#define PSFEX_NCOL_PER(im) ((im)->eigen_ncol)
+#define PSFEX_SIZE_PER(im) ((im)->eigens->eigen_size)
+#define PSFEX_NROW_PER(im) ((im)->eigens->eigen_nrow)
+#define PSFEX_NCOL_PER(im) ((im)->eigens->eigen_ncol)
 
-#define PSFEX_SIZE_TOT(im) ((im)->mosaic_size)
-#define PSFEX_NROW_TOT(im) ((im)->mosaic_nrow)
-#define PSFEX_NCOL_TOT(im) ((im)->mosaic_ncol)
+#define PSFEX_SIZE_TOT(im) ((im)->eigens->mosaic_size)
+#define PSFEX_NROW_TOT(im) ((im)->eigens->mosaic_nrow)
+#define PSFEX_NCOL_TOT(im) ((im)->eigens->mosaic_ncol)
 
 #define PSFEX_GET(im, eigen, row, col)                       \
-    ( *((im)->rows[(eigen)*(im)->eigen_nrow + (row)] + (col)) )
+    ( *((im)->eigens->rows[(eigen)*(im)->eigens->eigen_nrow + (row)] + (col)) )
 
 #define PSFEX_GET_ROW(im, eigen, row)                       \
-    ((im)->rows[(eigen)*(im)->eigen_nrow + (row)] )
+    ((im)->eigens->rows[(eigen)*(im)->eigens->eigen_nrow + (row)] )
 
 struct psfex {
 

@@ -92,6 +92,27 @@ static void read_keys(fitsfile *fits,
 
 }
 
+static void read_eigens(struct psfex *self, fitsfile *fits, int *status)
+{
+
+    double nulval=0;
+    LONGLONG firstrow=1;
+    LONGLONG firstelem=1;
+    LONGLONG nread=self->eigens->mosaic_size;
+
+    double *data=self->eigens->rows[0];
+
+    int colnum=0;
+    if (fits_get_colnum(fits, 0, "PSF_MASK", &colnum, status)) {
+        fits_report_error(stderr,*status);
+        return;
+    }
+ 
+    if (fits_read_col_dbl(fits, colnum, firstrow, firstelem, nread,
+                          nulval, data, NULL, status)) {
+        fits_report_error(stderr,(*status));
+    }
+}
 static struct psfex *psfex_from_fits(fitsfile *fits)
 {
     struct psfex *self=NULL;
@@ -130,6 +151,12 @@ static struct psfex *psfex_from_fits(fitsfile *fits)
                    polscale_row,
                    polscale_col,
                    psf_samp);
+
+    read_eigens(self, fits, &status);
+    if (status != 0) {
+        self=psfex_free(self);
+    }
+
 _psfex_from_fits_bail:
     return self;
 

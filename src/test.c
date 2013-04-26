@@ -16,5 +16,12 @@ int main(int argc, char **argv)
     struct psfex *psfex=psfex_fits_read(fname);
     psfex_write(psfex, stdout);
 
+    long row=11, col=8;
+    long neigen=PSFEX_NEIGEN(psfex);
+    for (long eigen=0; eigen<neigen; eigen++) {
+        printf("eigen: %ld\n", eigen);
+        printf("  pix[%ld,%ld]: %lf\n", row, col, PSFEX_GET(psfex,eigen,row,col));
+    }
+
     psfex=psfex_free(psfex);
 }
