@@ -1,0 +1,6 @@
+psfex.o: src/psfex.c src/psfex.h
+psfex_fits.o: src/psfex_fits.c \
+ /project/projectdirs/cmb/modules/carver/hpcports_gnu/cfitsio-3.31/include/fitsio.h \
+ /project/projectdirs/cmb/modules/carver/hpcports_gnu/cfitsio-3.31/include/longnam.h \
+ src/psfex_fits.h src/psfex.h
+test.o: src/test.c src/psfex.h src/psfex_fits.h
