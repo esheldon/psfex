@@ -17,9 +17,9 @@ struct psfex_eigens {
 
 #define PSFEX_NEIGEN(im) ((im)->eigens->neigen)
 
-#define PSFEX_SIZE_PER(im) ((im)->eigens->eigen_size)
-#define PSFEX_NROW_PER(im) ((im)->eigens->eigen_nrow)
-#define PSFEX_NCOL_PER(im) ((im)->eigens->eigen_ncol)
+#define PSFEX_SIZE(im) ((im)->eigens->eigen_size)
+#define PSFEX_NROW(im) ((im)->eigens->eigen_nrow)
+#define PSFEX_NCOL(im) ((im)->eigens->eigen_ncol)
 
 #define PSFEX_SIZE_TOT(im) ((im)->eigens->mosaic_size)
 #define PSFEX_NROW_TOT(im) ((im)->eigens->mosaic_nrow)
@@ -32,7 +32,6 @@ struct psfex_eigens {
     ((im)->eigens->rows[(eigen)*(im)->eigens->eigen_nrow + (row)] )
 
 struct psfex {
-
     long poldeg;
 
     double polzero_row;
@@ -47,11 +46,6 @@ struct psfex {
 };
 
 
-struct psfex_eigens *psfex_eigens_new(long neigen,
-                                      long nrow,
-                                      long ncol);
-
-struct psfex_eigens *psfex_eigens_free(struct psfex_eigens *self);
 struct psfex *psfex_new(long neigen,
                         long nrow,   // per eigen
                         long ncol,   // per eigen
@@ -64,6 +58,45 @@ struct psfex *psfex_new(long neigen,
 
 struct psfex *psfex_free(struct psfex *self);
 int psfex_check(const struct psfex *self);
+
+// write the metadata to the input stream
 void psfex_write(const struct psfex *self, FILE* stream);
+
+// reconstruct a psf image at the indicated location
+// return a pointer to allocated data
+double *psfex_recp(const struct psfex *self,
+                   double row,
+                   double col,
+                   long *nrow,
+                   long *ncol);
+
+// the user will probably want to use their own image class
+// this is available if wanted and for testing purposes
+struct psfex_image {
+    size_t size;   // masked size
+    size_t nrow;  // masked nrows
+    size_t ncol;  // masked ncols
+
+    double **rows;
+};
+
+#define PSFIM_SIZE(im) ((im)->size)
+#define PSFIM_NROW(im) ((im)->nrow)
+#define PSFIM_NCOL(im) ((im)->ncol)
+#define PSFIM_GET(im, row, col)      \
+    ( *((im)->rows[(row)] + (col)) )
+
+
+struct psfex_image *psfex_image_new(struct psfex_image *self,
+                                    long nrows, long ncols);
+struct psfex_image *psfex_image_free(struct psfex_image *self);
+
+// reconstruct a psf image at the indicated location
+// and return a psfex_image object
+struct psfex_image *psfex_rec_image(const struct psfex *self,
+                                    double row,
+                                    double col);
+
+
 
 #endif

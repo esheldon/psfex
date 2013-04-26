@@ -1,3 +1,6 @@
+/*
+   Based on PSFEx.h by peter melchior
+*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -6,14 +9,13 @@
 static const double INTERPFAC = 3.0;
 static const double IINTERPFAC = .3333333333333333333333333333;
 
-/*
 static double sinc(double x) {
     if (x<1e-5 && x>-1e-5)
         return 1.;
     return sin(x*M_PI)/(x*M_PI);
 }
-*/
 
+static
 struct psfex_eigens *psfex_eigens_new(long neigen,
                                       long nrow,   // per eigen
                                       long ncol)   // per eigen
@@ -50,6 +52,7 @@ struct psfex_eigens *psfex_eigens_new(long neigen,
     return self;
 }
 
+static
 struct psfex_eigens *psfex_eigens_free(struct psfex_eigens *self)
 {
     if (self) {
@@ -97,7 +100,8 @@ struct psfex *psfex_new(long neigen,
         return self;
     }
 
-    self->maxrad = ((ncol-1)/2.-INTERPFAC)*self->psf_samp;
+    // maximum radius in the sample space (x/psf_samp)
+    self->maxrad = (ncol-1)/2. - INTERPFAC;
 
     return self;
 }
@@ -139,45 +143,130 @@ void psfex_write(const struct psfex *self, FILE* stream)
     fprintf(stream,"ncol:         %ld\n", self->eigens->eigen_ncol);
 }
 
-// image sampled psf pixel at position relx,rely relative to the psf center at centerx,centery
-// brightest pixel is at relx=rely=0
+
 /*
-static double pixel_lanczos(const struct psfex *self,
-                            double rowcen,
-                            double colcen,
-                            double row,
-                            double col)
+
+   Add up the contributions for each eigen image
+
+   The row_scaled and col_scaled are the central row and col in the
+   translated and scaled coordinates for the polynomial, (row-zero_row)/scale
+
+   The erow, ecol are the pixel coords for the eigen images
+*/
+static
+double get_summed_eigen_pixel(const struct psfex *self,
+                              double row_scaled, double col_scaled, 
+                              long erow, long ecol)
 {
-    double drowp = (row-rowcen)/self->psf_samp;
-    double dcolp = (col-colcen)/self->psf_samp;
+    // always start with value in the zeroth eigenimage
+    double res=PSFEX_GET(self, 0, erow, ecol);
 
-    double sum = 0.;
-
-    for(int irow=0; irow<self->nrow; irow++) {
-        double drow = fabs(irow - 0.5*self->nrow - drowp);
-        if (drow > INTERPFAC)
-            continue;
-
-        double drowdiv = drow*IINTERPFAC;
-
-        for(int icol=0; icol<self->ncol; icol++) {
-            double dcol = fabs(icol - 0.5*self->ncol - dcolp);
-            if (dcol > INTERPFAC)
-                continue;
-
-            double dcoldiv = dcol*IINTERPFAC;
-
-            double interpolant = 
-                sinc(drow)*sinc(drowdiv)*sinc(dcol)*sinc(dcoldiv);
-
-            double value = 
-                pixel_sampled_interp(self,irow,icol,rowcen,colcen);
-
-            sum += value*interpolant;
+    for (long p=1; p<self->poldeg; p++) {
+        for (long prow=0; prow<=p; prow++) {
+            long pcol=p-prow;
+            long k = pcol+prow*(self->poldeg+1)-(prow*(prow-1))/2;
+            double eigval = PSFEX_GET(self, k, erow, ecol);
+            res += pow(row_scaled,pcol) * pow(col_scaled,prow)* eigval;
         }
     }
-    sum /= (psf_samp*psf_samp);
-    return sum;
+    return res;
 }
+/*
+
+   Get the pixel value.  The central row and col are in the translated and
+   scaled coordinates for the polynomial, (row-zero_row)/scale
+
+   The drow_samp,dcol_samp are relative to the *unscaled* centroid but are
+   corrected for the sampling, e.g. (rowpsf-row)/psf_samp
+
+   We then interpolate the pixels from a neighborhood radius defined (in the
+   sample scale corrected coords) INTERPFAC
+
+   you should check against maxrad before calling this function
 */
+static
+double get_pixel_value_samp(const struct psfex *self,
+                            double row_scaled, double col_scaled,
+                            double drow_samp, double dcol_samp)
+{
+    double pixval=0;
+
+    long nrow=PSFEX_NROW(self);
+    long ncol=PSFEX_NCOL(self);
+
+    // interpolate values from the eigen images
+    // we limit to the region defined by INTERPFAC
+    // erow,ecol is for row in the eigen image set
+    for(long erow=0; erow<nrow; erow++) {
+        double derow = fabs(erow - 0.5*nrow - drow_samp);
+        if (derow > INTERPFAC)
+            continue;
+
+        double derowdiv = derow*IINTERPFAC;
+
+        for(long ecol=0; ecol<ncol; ecol++) {
+            double decol = fabs(ecol - 0.5*ncol - dcol_samp);
+            if (decol > INTERPFAC)
+                continue;
+
+            double decoldiv = decol*IINTERPFAC;
+
+            double interpolant = 
+                sinc(derow)*sinc(derowdiv)*sinc(decol)*sinc(decoldiv);
+
+            double value = get_summed_eigen_pixel(self, 
+                                                  row_scaled, col_scaled,
+                                                  erow, ecol);
+            pixval+= value*interpolant;
+        }
+    }
+
+    return pixval;
+}
+double *psfex_recp(const struct psfex *self,
+                   double row,
+                   double col,
+                   long *nrow,
+                   long *ncol)
+{
+
+    (*nrow) = PSFEX_NROW(self);
+    (*ncol) = PSFEX_NCOL(self);
+    long npix=(*nrow)*(*ncol);
+    double *data=calloc(npix, sizeof(double));
+    if (!data) {
+        fprintf(stderr,"could not allocate %ld doubles\n", npix);
+        exit(1);
+    }
+
+    double row_scaled = (row-self->polzero_row)/self->polscale_row;
+    double col_scaled = (col-self->polzero_col)/self->polscale_col;
+
+    double sampfac = 1./(self->psf_samp*self->psf_samp);
+
+    for (long rowpsf=0; rowpsf<(*nrow); rowpsf++) {
+        double drow_samp = (rowpsf-row)/self->psf_samp;
+        if (fabs(drow_samp) > self->maxrad)
+            continue;
+
+        for (long colpsf=0; colpsf<(*ncol); colpsf++) {
+
+            double dcol_samp = (colpsf-col)/self->psf_samp;
+            if (fabs(dcol_samp) > self->maxrad)
+                continue;
+
+            dcol_samp /= self->psf_samp;
+
+            // pixle value in sample coords
+            double pixval = get_pixel_value_samp(self, row_scaled, col_scaled, 
+                                                 drow_samp, dcol_samp);
+            // in pixel coords
+            pixval *= sampfac;
+
+            data[rowpsf*(*nrow) + colpsf] = pixval;
+        }
+    }
+    return data;
+}
+
 
