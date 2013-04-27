@@ -23,5 +23,9 @@ int main(int argc, char **argv)
         printf("  pix[%ld,%ld]: %lf\n", row, col, PSFEX_GET(psfex,eigen,row,col));
     }
 
+    struct psfex_image *im=psfex_rec_image(psfex,500., 600.);
+    printf("rec[%ld,%ld]: %lf\n", row, col, PSFIM_GET(im, row, col));
+
+    im=psfex_image_free(im);
     psfex=psfex_free(psfex);
 }

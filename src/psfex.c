@@ -143,6 +143,67 @@ void psfex_write(const struct psfex *self, FILE* stream)
     fprintf(stream,"ncol:         %ld\n", self->eigens->eigen_ncol);
 }
 
+struct psfex_image *psfex_image_new(long nrow, long ncol)
+{
+    return _psfex_image_new(nrow, ncol, 1);
+}
+struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data)
+{
+    struct psfex_image *self=calloc(1, sizeof(struct psfex_image));
+    if (!self) {
+        fprintf(stderr,"Could not allocate struct psfex_image\n");
+        exit(1);
+    }
+    
+    self->size=nrow*ncol;
+    self->nrow=nrow;
+    self->ncol=ncol;
+
+    self->rows = calloc(self->nrow,sizeof(double *));
+    if (!self->rows) {
+        fprintf(stderr,"could not allocate %ld image rows\n",
+                self->nrow);
+        exit(1);
+    }
+
+    if (alloc_data) {
+        self->rows[0]=calloc(self->size,sizeof(double));
+        if (self->rows[0]==NULL) {
+            fprintf(stderr,"could not allocate image of dimensions [%lu,%lu]\n",
+                    nrow,ncol);
+            exit(1);
+        }
+
+        for(long i = 1; i < self->nrow; i++) {
+            self->rows[i] = self->rows[i-1] + self->ncol;
+        }
+        self->is_owner=1;
+    } else {
+        self->rows[0] = NULL;
+        self->is_owner=0;
+    }
+
+    return self;
+}
+struct psfex_image *psfex_image_free(struct psfex_image *self)
+{
+    if (self) {
+        if (self->rows) {
+            if (self->rows[0]) {
+                free(self->rows[0]);
+            }
+            self->rows[0]=NULL;
+
+            free(self->rows);
+            self->rows=NULL;
+        }
+        free(self);
+        self=NULL;
+    }
+    return self;
+}
+
+
 
 /*
 
@@ -163,7 +224,7 @@ double get_summed_eigen_pixel(const struct psfex *self,
 
     for (long p=1; p<self->poldeg; p++) {
         for (long prow=0; prow<=p; prow++) {
-            long pcol=p-prow;
+            long pcol = p-prow;
             long k = pcol+prow*(self->poldeg+1)-(prow*(prow-1))/2;
             double eigval = PSFEX_GET(self, k, erow, ecol);
             res += pow(row_scaled,pcol) * pow(col_scaled,prow)* eigval;
@@ -223,6 +284,7 @@ double get_pixel_value_samp(const struct psfex *self,
 
     return pixval;
 }
+
 double *psfex_recp(const struct psfex *self,
                    double row,
                    double col,
@@ -244,29 +306,50 @@ double *psfex_recp(const struct psfex *self,
 
     double sampfac = 1./(self->psf_samp*self->psf_samp);
 
+    double rowpsf_cen=((*nrow)-1.)/2.;
+    double colpsf_cen=((*ncol)-1.)/2.;
+
     for (long rowpsf=0; rowpsf<(*nrow); rowpsf++) {
-        double drow_samp = (rowpsf-row)/self->psf_samp;
+        //double drow_samp = (rowpsf-row)/self->psf_samp;
+        double drow_samp = (rowpsf-rowpsf_cen)/self->psf_samp;
+        //printf("drow_samp: %lf\n", drow_samp);
         if (fabs(drow_samp) > self->maxrad)
             continue;
 
         for (long colpsf=0; colpsf<(*ncol); colpsf++) {
 
-            double dcol_samp = (colpsf-col)/self->psf_samp;
+            //double dcol_samp = (colpsf-col)/self->psf_samp;
+            double dcol_samp = (colpsf-colpsf_cen)/self->psf_samp;
             if (fabs(dcol_samp) > self->maxrad)
                 continue;
-
-            dcol_samp /= self->psf_samp;
 
             // pixle value in sample coords
             double pixval = get_pixel_value_samp(self, row_scaled, col_scaled, 
                                                  drow_samp, dcol_samp);
             // in pixel coords
             pixval *= sampfac;
+            //printf("pixval: %lf\n", pixval);
 
-            data[rowpsf*(*nrow) + colpsf] = pixval;
+            data[rowpsf*(*ncol) + colpsf] = pixval;
         }
     }
     return data;
 }
 
 
+struct psfex_image *psfex_rec_image(const struct psfex *self,
+                                    double row,
+                                    double col)
+{
+    long nrow=0, ncol=0;
+    double *data=psfex_recp(self, row, col, &nrow, &ncol);
+    struct psfex_image *im=_psfex_image_new(nrow, ncol, 0);
+
+    im->rows[0] = data;
+
+    for(long i = 1; i < im->nrow; i++) {
+        im->rows[i] = im->rows[i-1] + im->ncol;
+    }
+    im->is_owner=1;
+    return im;
+}

@@ -77,6 +77,7 @@ struct psfex_image {
     size_t nrow;  // masked nrows
     size_t ncol;  // masked ncols
 
+    int is_owner;
     double **rows;
 };
 
@@ -87,8 +88,9 @@ struct psfex_image {
     ( *((im)->rows[(row)] + (col)) )
 
 
-struct psfex_image *psfex_image_new(struct psfex_image *self,
-                                    long nrows, long ncols);
+struct psfex_image *psfex_image_new(long nrow, long ncol);
+struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data);
+
 struct psfex_image *psfex_image_free(struct psfex_image *self);
 
 // reconstruct a psf image at the indicated location
