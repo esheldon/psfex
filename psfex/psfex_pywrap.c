@@ -1,3 +1,7 @@
+/*
+   No error checking on the eigens array is done, do that in python
+   Make sure it is native byte order and C order.
+*/
 #include <Python.h>
 #include "psfex.h"
 #include <numpy/arrayobject.h> 
@@ -13,23 +17,42 @@ PyPSFExObject_dealloc(struct PyPSFExObject* self)
     self->ob_type->tp_free((PyObject*)self);
 }
 
+// do your type checking in python!
+static void copy_eigens(struct psfex *self, PyObject *eigens_obj)
+{
+    long size=0;
+    double *data = (double* )PyArray_DATA(eigens_obj);
+
+    size=PSFEX_SIZE_TOT(self);
+    memcpy(self->eigens->rows[0], data, size);
+}
+
 static int
 PyPSFExObject_init(struct PyPSFExObject* self, PyObject *args)
 {
-    long neigen;
-    long nrow;   // per eigen
-    long ncol;   // per eigen
-    long poldeg;
-    double polzero_row;
-    double polzero_col;
-    double polscale_row;
-    double polscale_col;
-    double psf_samp;
+    long neigen=0;
+    long nrow=0;   // per eigen
+    long ncol=0;   // per eigen
+    long poldeg=0;
+    double polzero_row=0;
+    double polzero_col=0;
+    double polscale_row=0;
+    double polscale_col=0;
+    double psf_samp=0;
+    PyObject *eigens_obj=NULL;
 
     if (!PyArg_ParseTuple(args, 
-                          (char*)"llllddddd", 
-                          &neigen,&nrow,&ncol,&poldeg,&polzero_row,&polzero_col,
-                          &polscale_row,&polscale_col,&psf_samp)) {
+                          (char*)"lllldddddO", 
+                          &neigen,
+                          &nrow,
+                          &ncol,
+                          &poldeg,
+                          &polzero_row,
+                          &polzero_col,
+                          &polscale_row,
+                          &polscale_col,
+                          &psf_samp,
+                          &eigens_obj)) {
         printf("failed to Parse init");
         return -1;
     }
@@ -43,7 +66,11 @@ PyPSFExObject_init(struct PyPSFExObject* self, PyObject *args)
                           polscale_row,
                           polscale_col,
                           psf_samp);
+    if (!self->psfex) {
+        return -1;
+    }
 
+    copy_eigens(self->psfex, eigens_obj);
     return 0;
 }
 
@@ -71,13 +98,36 @@ PyPSFExObject_repr(struct PyPSFExObject* self) {
 }
 
 
-PyObject *PyPSFExObject_test(struct PyPSFExObject* self)
+static PyObject *make_psf_image(const struct psfex *self)
 {
-    return PyFloat_FromDouble(1.0);
+    PyObject *image=NULL;
+    int ndims=2;
+    npy_intp dims[2];
+    dims[0] = PSFEX_NROW(self);
+    dims[1] = PSFEX_NCOL(self);
+    image = PyArray_ZEROS(ndims, dims, NPY_FLOAT64, 0);
+    return image;
 }
 
+PyObject *PyPSFExObject_rec(struct PyPSFExObject* self, PyObject *args)
+{
+    double row=0, col=0;
+    if (!PyArg_ParseTuple(args, (char*)"dd", &row, &col)) {
+        return NULL;
+    }
+
+    PyObject *image=make_psf_image(self->psfex);
+    double *data=(double*) PyArray_DATA(image);
+
+    _psfex_rec_fill(self->psfex, row, col, data);
+
+    return image;
+}
+
+
+
 static PyMethodDef PyPSFExObject_methods[] = {
-    {"test",          (PyCFunction)PyPSFExObject_test,          METH_VARARGS, "test\n\ntest, return a double"},
+    {"rec",   (PyCFunction)PyPSFExObject_rec,  METH_VARARGS, "rec\n\nrec(row,col)"},
     {NULL}  /* Sentinel */
 };
 
@@ -137,7 +187,7 @@ static PyMethodDef PSFEx_type_methods[] = {
 #define PyMODINIT_FUNC void
 #endif
 PyMODINIT_FUNC
-init_cosmolib(void) 
+init_psfex_pywrap(void) 
 {
     PyObject* m;
 
@@ -148,7 +198,7 @@ init_cosmolib(void)
     m = Py_InitModule3("_psfex_pywrap", PSFEx_type_methods, "Define PSFEx type and methods.");
 
     Py_INCREF(&PyPSFExType);
-    PyModule_AddObject(m, "psfex", (PyObject *)&PyPSFExType);
+    PyModule_AddObject(m, "PSFEx", (PyObject *)&PyPSFExType);
 
     import_array();
 }

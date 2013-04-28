@@ -301,34 +301,8 @@ double *psfex_recp(const struct psfex *self,
         exit(1);
     }
 
-    double row_scaled = (row-self->polzero_row)/self->polscale_row;
-    double col_scaled = (col-self->polzero_col)/self->polscale_col;
+    _psfex_rec_fill(self, row, col, data);
 
-    double sampfac = 1./(self->psf_samp*self->psf_samp);
-
-    double rowpsf_cen=((*nrow)-1.)/2.;
-    double colpsf_cen=((*ncol)-1.)/2.;
-
-    for (long rowpsf=0; rowpsf<(*nrow); rowpsf++) {
-        double drow_samp = (rowpsf-rowpsf_cen)/self->psf_samp;
-        if (fabs(drow_samp) > self->maxrad)
-            continue;
-
-        for (long colpsf=0; colpsf<(*ncol); colpsf++) {
-
-            double dcol_samp = (colpsf-colpsf_cen)/self->psf_samp;
-            if (fabs(dcol_samp) > self->maxrad)
-                continue;
-
-            // pixle value in sample coords
-            double pixval = get_pixel_value_samp(self, row_scaled, col_scaled, 
-                                                 drow_samp, dcol_samp);
-            // in pixel coords
-            pixval *= sampfac;
-
-            data[rowpsf*(*ncol) + colpsf] = pixval;
-        }
-    }
     return data;
 }
 
@@ -351,3 +325,45 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
     im->is_owner=1;
     return im;
 }
+
+void _psfex_rec_fill(const struct psfex *self,
+                     double row,
+                     double col,
+                     double *data)
+{
+
+    long nrow = PSFEX_NROW(self);
+    long ncol = PSFEX_NCOL(self);
+
+    double row_scaled = (row-self->polzero_row)/self->polscale_row;
+    double col_scaled = (col-self->polzero_col)/self->polscale_col;
+
+    double sampfac = 1./(self->psf_samp*self->psf_samp);
+
+    double rowpsf_cen=(nrow-1.)/2.;
+    double colpsf_cen=(ncol-1.)/2.;
+
+    for (long rowpsf=0; rowpsf<nrow; rowpsf++) {
+        double drow_samp = (rowpsf-rowpsf_cen)/self->psf_samp;
+        if (fabs(drow_samp) > self->maxrad)
+            continue;
+
+        for (long colpsf=0; colpsf<ncol; colpsf++) {
+
+            double dcol_samp = (colpsf-colpsf_cen)/self->psf_samp;
+            if (fabs(dcol_samp) > self->maxrad)
+                continue;
+
+            // pixle value in sample coords
+            double pixval = get_pixel_value_samp(self, row_scaled, col_scaled, 
+                                                 drow_samp, dcol_samp);
+            // in pixel coords
+            pixval *= sampfac;
+
+            data[rowpsf*ncol + colpsf] = pixval;
+        }
+    }
+}
+
+
+

@@ -1,19 +1,13 @@
 import fitsio
 import numpy
+from . import _psfex_pywrap
 
 INTERPFAC = 3.0
 EIGEN_DTYPE = 'f8'
 
-class PSFEx(object):
+class PSFEx(dict):
     def __init__(self, filename):
-        self._filename=filename
-        self._load()
-
-        self._check()
-
-        self._set_maxrad()
-        self._set_eigen_list()
-        #self._set_grid()
+        self._load(filename)
 
     def rec(self, row, col):
         """
@@ -22,74 +16,57 @@ class PSFEx(object):
         psf is a double array
         """
 
-        # always start with exactly first eigen image
-        psf=self._eigen[0].copy()
+        return self._psfex.rec(row, col)
 
-        for i in xrange(1,self._neigen):
-            pass
-
-    def _set_grid(self):
-        rgrid, cgrid=numpy.mgrid[0:self._nrows, self._ncols]
-        self._rowcen=(self._nrows-1)/2
-        self._colcen=(self._ncols-1)/2
-        maxrad=self._maxrad
-        self._wgood, = \
-            numpy.where(  (numpy.abs(self._rgrid-self._rowcen) < maxrad)
-                        & (numpy.abs(self._cgrid-self._colcen) < maxrad) )
-
-    def _load(self):
+    def _load(self, filename):
         """
         Load the PSF information from the fits file
+
+        Also load the C PSFEx object
         """
 
-        with fitsio.FITS(self._filename) as fits:
-            # eigen means "eigen images"
-            eigen_tot=fits['psf_data']['psf_mask'][:]
+        self['filename'] = filename
+        with fitsio.FITS(filename) as fits:
+            eigens=fits['psf_data']['psf_mask'][:]
+            eigens=numpy.array(eigens, dtype=EIGEN_DTYPE)
+
             h=fits['psf_data'].read_header()
 
-        self._eigen_tot=eigen_tot.astype(EIGEN_DTYPE)
+        # make a copy, will be native byte order
+        self._eigens=eigens
 
-        self._neigen = self._eigen_tot.shape[0]
-        self._nrows=self._eigen_tot.shape[1]
-        self._ncols=self._eigen_tot.shape[2]
-
+        self['neigen'] = self._eigens.shape[0]
+        self['nrow']=self._eigens.shape[1]
+        self['ncol']=self._eigens.shape[2]
 
         self._hdata=h
 
-        self._poldeg = h['poldeg1']
-        self._polzero_row = h['polzero2']
-        self._polzero_col = h['polzero1']
+        self['poldeg'] = h['poldeg1']
 
-        self._polscale_row = h['polscal2']
-        self._polscale_col = h['polscal1']
+        self['polzero_row'] = h['polzero2']
+        self['polzero_col'] = h['polzero1']
 
-        self._psf_samp = h['psf_samp']
+        self['polscale_row'] = h['polscal2']
+        self['polscale_col'] = h['polscal1']
 
-    def _set_eigen_list(self):
-        elist=[]
-        for i in xrange(self._neigen):
-            elist.append(self._eigen_tot[i,:,:])
+        """
+        self['polzero_row'] = h['polzero1']
+        self['polzero_col'] = h['polzero2']
 
-        self._eigen=elist
+        self['polscale_row'] = h['polscal1']
+        self['polscale_col'] = h['polscal2']
+        """
 
-    def _set_maxrad(self):
-        self._maxrad = ((self._ncols-1)/2.-INTERPFAC)*self._psf_samp
+        self['psf_samp'] = h['psf_samp']
 
-    def _check(self):
-        h=self._hdata
+        self._psfex = _psfex_pywrap.PSFEx(self['neigen'],
+                                          self['nrow'],
+                                          self['ncol'],
+                                          self['poldeg'],
+                                          self['polzero_row'],
+                                          self['polzero_col'],
+                                          self['polscale_row'],
+                                          self['polscale_col'],
+                                          self['psf_samp'],
+                                          self._eigens)
 
-        polngrp=h['polngrp']
-        if polngrp != 1:
-            raise ValueError("expected POLNGRP==1 but got %d" % polngrp)
-        psfnaxis=h['psfnaxis']
-        if psfnaxis != 3:
-            raise ValueError("expected PSFNAXIS==3 but got %d" % psfnaxis)
-
-        polnaxis=h['polnaxis']
-        if polnaxis != 2:
-            raise ValueError("expected POLNAXIS==2 but got %d" % polnaxis)
-
-        neigen=self._neigen
-        poldeg=self._poldeg
-        if neigen != ((poldeg+1)*(poldeg+2))/2:
-            raise ValueError("poldeg and neigen disagree")

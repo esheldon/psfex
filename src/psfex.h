@@ -81,6 +81,13 @@ struct psfex_image {
     double **rows;
 };
 
+// fill the user-supplied data.  The user is responsible
+// for making sure the data is nrow*ncol in size!
+void _psfex_rec_fill(const struct psfex *self,
+                     double row,
+                     double col,
+                     double *data);
+
 #define PSFIM_SIZE(im) ((im)->size)
 #define PSFIM_NROW(im) ((im)->nrow)
 #define PSFIM_NCOL(im) ((im)->ncol)
