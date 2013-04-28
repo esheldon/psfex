@@ -310,15 +310,12 @@ double *psfex_recp(const struct psfex *self,
     double colpsf_cen=((*ncol)-1.)/2.;
 
     for (long rowpsf=0; rowpsf<(*nrow); rowpsf++) {
-        //double drow_samp = (rowpsf-row)/self->psf_samp;
         double drow_samp = (rowpsf-rowpsf_cen)/self->psf_samp;
-        //printf("drow_samp: %lf\n", drow_samp);
         if (fabs(drow_samp) > self->maxrad)
             continue;
 
         for (long colpsf=0; colpsf<(*ncol); colpsf++) {
 
-            //double dcol_samp = (colpsf-col)/self->psf_samp;
             double dcol_samp = (colpsf-colpsf_cen)/self->psf_samp;
             if (fabs(dcol_samp) > self->maxrad)
                 continue;
@@ -328,7 +325,6 @@ double *psfex_recp(const struct psfex *self,
                                                  drow_samp, dcol_samp);
             // in pixel coords
             pixval *= sampfac;
-            //printf("pixval: %lf\n", pixval);
 
             data[rowpsf*(*ncol) + colpsf] = pixval;
         }

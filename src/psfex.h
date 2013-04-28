@@ -87,6 +87,8 @@ struct psfex_image {
 #define PSFIM_GET(im, row, col)      \
     ( *((im)->rows[(row)] + (col)) )
 
+#define PSFIM_GETP(im, row, col)                 \
+    (  ((im)->rows[(row)] + (col)) )
 
 struct psfex_image *psfex_image_new(long nrow, long ncol);
 struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data);
