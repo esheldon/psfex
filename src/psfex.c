@@ -339,6 +339,8 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
 {
     long nrow=0, ncol=0;
     double *data=psfex_recp(self, row, col, &nrow, &ncol);
+
+    // 0 means don't allocate the data
     struct psfex_image *im=_psfex_image_new(nrow, ncol, 0);
 
     im->rows[0] = data;
