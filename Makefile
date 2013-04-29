@@ -11,26 +11,31 @@ SRCDIR=./src
 
 # note order
 TEST_LINKFLAGS=-L$(SRCDIR) -lpsfex -lcfitsio -lm
+REC_LINKFLAGS=-L$(SRCDIR) -lpsfex -lcfitsio -lm
 
 LIB_SOURCES = $(SRCDIR)/psfex.c $(SRCDIR)/psfex_fits.c
 
 TEST_SOURCES = $(SRCDIR)/test.c
+REC_SOURCES = $(SRCDIR)/psfex-rec.c
 
 ALL_SOURCES = $(LIB_SOURCES) \
-			  $(TEST_SOURCES)
+			  $(TEST_SOURCES) \
+			  $(REC_SOURCES)
 
 LIB_OBJECTS=$(patsubst %.c,%.o,$(LIB_SOURCES)) 
 TEST_OBJECTS=$(patsubst %.c,%.o,$(TEST_SOURCES)) 
+REC_OBJECTS=$(patsubst %.c,%.o,$(REC_SOURCES)) 
 
 # these installed
 LIB_BASE=libpsfex.a
 LIB = $(SRCDIR)/$(LIB_BASE)
 HEADER = $(SRCDIR)/psfex.h
 
-# just for tests
 TEST_PROG = $(SRCDIR)/test
+REC_PROG = $(SRCDIR)/psfex-rec
 
-PROGS=$(TEST_PROG)
+PROGS=$(TEST_PROG) $(REC_PROG)
+
 DEPFILE=$(SRCDIR)/.depend
 
 default: all
@@ -50,7 +55,7 @@ install: $(LIB)
 	cp $(LIB) $(prefix)/lib/
 	cp $(HEADER) $(prefix)/include/
 
-all: $(TEST_PROG)
+all: $(TEST_PROG) $(REC_PROG)
 
 lib: $(LIB)
 	
@@ -59,6 +64,9 @@ $(LIB): $(LIB_OBJECTS)
 
 $(TEST_PROG): $(LIB) $(TEST_OBJECTS)
 	$(LD) -o $@  $(TEST_OBJECTS) $(TEST_LINKFLAGS)
+
+$(REC_PROG): $(LIB) $(REC_OBJECTS)
+	$(LD) -o $@  $(REC_OBJECTS) $(REC_LINKFLAGS)
 
 clean:
 	rm -f $(SRCDIR)/*.o $(LIB) $(PROGS) $(DEPFILE)
