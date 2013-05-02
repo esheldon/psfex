@@ -6,17 +6,16 @@
 int main(int argc, char **argv)
 {
     if (argc < 5) {
-        printf("usage: psfex-rec psfex_file row col outfile\n");
+        printf("usage: psfex-rec psfex_file outfile row col\n");
         printf("   reconstruct the psf image at the indicated location\n");
         printf("   and write to the output fits file\n");
         return 1;
     }
 
     const char *fname=argv[1];
-    double row = atof(argv[2]);
-    double col = atof(argv[3]);
-
-    const char *outname=argv[4];
+    const char *outname=argv[2];
+    double row = atof(argv[3]);
+    double col = atof(argv[4]);
 
     int clobber=1;
     int status=0;

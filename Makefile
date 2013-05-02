@@ -32,7 +32,9 @@ LIB = $(SRCDIR)/$(LIB_BASE)
 HEADER = $(SRCDIR)/psfex.h
 
 TEST_PROG = $(SRCDIR)/test
-REC_PROG = $(SRCDIR)/psfex-rec
+
+REC_BASE = psfex-rec
+REC_PROG = $(SRCDIR)/$(REC_BASE)
 
 PROGS=$(TEST_PROG) $(REC_PROG)
 
@@ -54,6 +56,8 @@ install: $(LIB)
 	mkdir -p $(prefix)/bin
 	cp $(LIB) $(prefix)/lib/
 	cp $(HEADER) $(prefix)/include/
+	cp $(REC_PROG) $(prefix)/bin
+	chmod a+x $(prefix)/bin/$(REC_BASE)
 
 all: $(TEST_PROG) $(REC_PROG)
 
