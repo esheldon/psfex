@@ -9,7 +9,7 @@ class PSFEx(dict):
     def __init__(self, filename):
         self._load(filename)
 
-    def rec(self, row, col):
+    def get_rec(self, row, col):
         """
         Reconstruct the PSF image at the specified location
 
@@ -17,6 +17,22 @@ class PSFEx(dict):
         """
 
         return self._psfex.rec(row, col)
+
+    def get_center(self, row, col):
+        """
+        Get the "center" in the reconstruction for the
+        input location
+        """
+        from math import floor
+        rowcen_int=(self['nrow']-1)//2
+        colcen_int=(self['ncol']-1)//2
+
+        row_remain=row-floor(row)
+        col_remain=col-floor(col)
+
+        rowcen = float(rowcen_int) + row_remain
+        colcen = float(colcen_int) + col_remain
+        return rowcen, colcen
 
     def _load(self, filename):
         """
