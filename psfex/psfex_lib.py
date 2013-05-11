@@ -34,6 +34,21 @@ class PSFEx(dict):
         colcen = float(colcen_int) + col_remain
         return rowcen, colcen
 
+    def get_fwhm(self):
+        """
+        Get the fwhm in pixels from the header
+        """
+        return self._hdata['psf_fwhm']
+
+    def get_sigma(self):
+        """
+        Get the "sigma" in pixels from the header
+        """
+        fac = 2.3548200450309493
+        fwhm=self.get_fwhm()
+        sigma = fwhm/fac
+        return sigma
+
     def _load(self, filename):
         """
         Load the PSF information from the fits file
