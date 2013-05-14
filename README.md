@@ -18,7 +18,8 @@ installation of python code
 
     # if you install in a prefix, make sure you
     # add the /some/path/lib/python2.7/site-packages
-    # directory to your PYTHONPATH
+    # directory to your PYTHONPATH (replace python2.7
+    # with your python version)
 
 installation of C library
 ----------------------------
@@ -40,8 +41,14 @@ installation of C library
     # to C_LIBRARY_PATH and CPATH
 
 
-dependencies
-------------
+dependencies for python library
+-------------------------------
 
+- python 2.5 or greater
 - numpy
+- cfitsio
+
+dependencies for C library
+-------------------------------
+
 - cfitsio
