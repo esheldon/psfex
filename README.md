@@ -17,8 +17,10 @@ using the C library
     #include "psfex.h"
     #include "psfex_fits.h"
 
+    double row=514.25, col=610.;
+
     struct psfex *psfex=psfex_fits_read(fname);
-    struct psfex_image *im=psfex_rec_image(psfex,500., 600.);
+    struct psfex_image *im=psfex_rec_image(psfex,row,col);
 
     printf("rec[%ld,%ld]: %lf\n", row, col, PSFIM_GET(im, row, col));
 
