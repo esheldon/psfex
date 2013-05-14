@@ -82,7 +82,6 @@ installation of C library and standalone psfex-rec code
 dependencies for python library
 -------------------------------
 
-- python 2.5 or greater
 - numpy
 - cfitsio
 
