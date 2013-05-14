@@ -7,6 +7,9 @@ using the python code
 ---------------------
 
     import psfex
+
+    row=514.25
+    col=610.00
     pex = psfex.PSFEx(filename)
     image = pex.get_rec(row, column)
 
