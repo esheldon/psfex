@@ -43,7 +43,7 @@ The image will be in output_file
 installation of python code
 ----------------------------
 
-    git clone git@github.com:esheldon/psfex.git
+    git clone https://github.com/esheldon/fitsio.git
 
     cd psfex
 
