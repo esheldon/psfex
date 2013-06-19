@@ -61,7 +61,7 @@ installation of python code
 installation of C library and standalone psfex-rec code
 ------------------------------------------------------
 
-    git clone git@github.com:esheldon/psfex.git
+    git clone https://github.com/esheldon/fitsio.git
 
     cd psfex
 
