@@ -444,16 +444,12 @@ void _psfex_rec_fill(const struct psfex *self,
   get_center(PSFEX_NROW(self), PSFEX_NCOL(self), row, col, &rowpsf_cen, &colpsf_cen);
   rowpsf_cen -= (float)PSFEX_NROW(self)/2;
   colpsf_cen -= (float)PSFEX_NCOL(self)/2;
-  fprintf(stdout,"center = %f, %f\n", rowpsf_cen, colpsf_cen);
+  //fprintf(stdout,"center = %f, %f\n", rowpsf_cen, colpsf_cen);
   
   _psfex_vignet_resample(self->maskloc, self->masksize[0], self->masksize[1],
 			 resampled, self->masksize[0], self->masksize[1],
-			 -0.51*self->pixstep,-0.74*self->pixstep,
+			 -(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
 			 self->pixstep);
-			 //-(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
-			 //self->pixstep);
-			 //-(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
-			 // self->pixstep);
 
   /*for (j=0;j<self->masksize[0];j++) {
     for (k=0;k<self->masksize[1];k++) {
