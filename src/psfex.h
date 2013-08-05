@@ -49,7 +49,7 @@ struct psfex {
   // and the alternative stuff from sextractor...
   int		maskdim;	/* Dimensionality of the tabulated data */
   //int		*masksize;	/* PSF mask dimensions */
-  int           masksize[2];
+  int           masksize[3];
   int		masknpix;	/* Total number of involved PSF pixels */
   float		*maskcomp;      /* Complete pix. data (PSF components) */
   float		*maskloc;	/* Local PSF */
