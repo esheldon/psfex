@@ -22,9 +22,15 @@ static void copy_eigens(struct psfex *self, PyObject *eigens_obj)
 {
     long size=0;
     double *data = (double* )PyArray_DATA(eigens_obj);
+    int i;
 
     size=PSFEX_SIZE_TOT(self);
     memcpy(self->eigens->rows[0], data, size);
+
+    //fprintf(stdout,"Copying eigens... [%d]\n",size);
+    for (i=0;i<size;i++) {
+      self->maskcomp[i] = (float) data[i];
+    }
 }
 
 static int

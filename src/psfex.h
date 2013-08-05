@@ -1,6 +1,8 @@
 #ifndef _PSFEX_HEADER_GUARD
 #define _PSFEX_HEADER_GUARD
 
+
+
 struct psfex_eigens {
     long neigen;
 
@@ -46,6 +48,27 @@ struct psfex {
     double iinterpfac;
 
     struct psfex_eigens *eigens;
+
+  // and the alternative stuff from sextractor...
+  int		maskdim;	/* Dimensionality of the tabulated data */
+  //int		*masksize;	/* PSF mask dimensions */
+  int           masksize[2];
+  int		masknpix;	/* Total number of involved PSF pixels */
+  float		*maskcomp;      /* Complete pix. data (PSF components) */
+  float		*maskloc;	/* Local PSF */
+  //  double	**context;	/* Contexts */
+  // t_type	*contexttyp;	/* Context types */
+  // char		**contextname;	/* Array of context key-names */
+  //double	*contextoffset;	/* Offset to apply to context data */
+  //double	*contextscale;	/* Scaling to apply to context data */
+  double        contextoffset[2];
+  double        contextscale[2];
+  struct poly	*poly;		/* Polynom describing the PSF variations */
+  //pcstruct	*pc;		/* PC components */
+  //double	fwhm;		/* Typical PSF FWHM */
+  float		pixstep;	/* PSF sampling step */
+  int		build_flag;	/* Set if the current PSF has been computed */
+  
 };
 
 
@@ -100,6 +123,14 @@ void _psfex_rec_fill(const struct psfex *self,
 #define PSFIM_GETP(im, row, col)                 \
     (  ((im)->rows[(row)] + (col)) )
 
+#define         INTERPW		8	/* Interpolation function range */
+#define PI      	3.1415926535898
+
+#define	INTERPF(x)	(x<1e-5 && x>-1e-5? 1.0 \
+			:(x>INTERPFAC?0.0:(x<-INTERPFAC?0.0 \
+			:sinf(PI*x)*sinf(PI/INTERPFAC*x)/(PI*PI/INTERPFAC*x*x))))
+				/* Lanczos approximation */
+
 struct psfex_image *psfex_image_new(long nrow, long ncol);
 struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data);
 
@@ -111,6 +142,9 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
                                     double row,
                                     double col);
 
+int _psfex_vignet_resample(float *pix1, int w1, int h1,
+			   float *pix2, int w2, int h2,
+			   float dx, float dy, float step2);
 
 
 #endif
