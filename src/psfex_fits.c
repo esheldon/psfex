@@ -105,6 +105,8 @@ static void read_eigens(struct psfex *self, fitsfile *fits, int *status)
 
     double *data=self->eigens->rows[0];
 
+    //fprintf(stdout,"Read eigens...\n");
+
     int colnum=0;
     if (fits_get_colnum(fits, 0, "PSF_MASK", &colnum, status)) {
         fits_report_error(stderr,*status);
@@ -115,6 +117,14 @@ static void read_eigens(struct psfex *self, fitsfile *fits, int *status)
                           nulval, data, NULL, status)) {
         fits_report_error(stderr,(*status));
     }
+
+    if (fits_read_col_flt(fits, colnum, firstrow, firstelem, nread,
+			  nulval, self->maskcomp, NULL, status)) {
+      fits_report_error(stderr,(*status));
+    }
+
+    //fprintf(stdout,"Done with reading.\n");
+    
 }
 static struct psfex *psfex_from_fits(fitsfile *fits)
 {

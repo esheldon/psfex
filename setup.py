@@ -3,7 +3,7 @@ from distutils.core import setup, Extension
 import numpy
 
 ext=Extension("psfex._psfex_pywrap", 
-              ["psfex/psfex_pywrap.c","psfex/psfex.c"],
+              ["psfex/psfex_pywrap.c","psfex/psfex.c","psfex/poly.c"],
               extra_compile_args = ['-std=gnu99'])
 
 setup(name="psfex", 
