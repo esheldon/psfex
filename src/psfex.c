@@ -6,8 +6,9 @@
 #include <math.h>
 #include "psfex.h"
 
-static const double INTERPFAC = 3.0;
-static const double IINTERPFAC = .3333333333333333333333333333;
+//static const double INTERPFAC = 3.0;
+//static const double INTERPFAC = 3.5;
+//static const double IINTERPFAC = 1.0/INTERPFAC;
 
 static double sinc(double x) {
     if (x<1e-5 && x>-1e-5)
@@ -100,8 +101,12 @@ struct psfex *psfex_new(long neigen,
         return self;
     }
 
+    self->interpfac=3.0;
+    self->iinterpfac=1/self->interpfac;
+
     // maximum radius in the sample space (x/psf_samp)
-    self->maxrad = (ncol-1)/2. - INTERPFAC;
+    self->maxrad = (ncol-1)/2. - self->interpfac;
+
 
     return self;
 }
@@ -260,17 +265,17 @@ double get_pixel_value_samp(const struct psfex *self,
     // erow,ecol is for row in the eigen image set
     for(long erow=0; erow<nrow; erow++) {
         double derow = fabs(erow - 0.5*nrow - drow_samp);
-        if (derow > INTERPFAC)
+        if (derow > self->interpfac)
             continue;
 
-        double derowdiv = derow*IINTERPFAC;
+        double derowdiv = derow*self->iinterpfac;
 
         for(long ecol=0; ecol<ncol; ecol++) {
             double decol = fabs(ecol - 0.5*ncol - dcol_samp);
-            if (decol > INTERPFAC)
+            if (decol > self->interpfac)
                 continue;
 
-            double decoldiv = decol*IINTERPFAC;
+            double decoldiv = decol*self->iinterpfac;
 
             double interpolant = 
                 sinc(derow)*sinc(derowdiv)*sinc(decol)*sinc(decoldiv);
@@ -296,8 +301,10 @@ static void get_center(long nrow, long ncol,
     double row_remain=row-floor(row);
     double col_remain=col-floor(col);
 
-    (*rowcen) = (double)rowcen_int + row_remain;
-    (*colcen) = (double)colcen_int + col_remain;
+    (*rowcen) = (double)rowcen_int + row_remain + 0.5;
+    (*colcen) = (double)colcen_int + col_remain + 0.5;
+    //(*rowcen) = (double)rowcen_int +0.5;
+    //(*colcen) = (double)colcen_int +0.5;
 
 }
 void _psfex_rec_fill(const struct psfex *self,

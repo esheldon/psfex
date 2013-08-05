@@ -42,6 +42,9 @@ struct psfex {
 
     double maxrad;
 
+    double interpfac;
+    double iinterpfac;
+
     struct psfex_eigens *eigens;
 };
 
