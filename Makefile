@@ -4,16 +4,16 @@ AR=ar
 
 prefix := /usr/local
 
-CFLAGS=-std=gnu99 -Wall -Werror -O2
+CFLAGS=-std=gnu99 -Wall -O2 -I$(FITSIO_BASE)/include
 ARFLAGS=rcs
 
 SRCDIR=./src
 
 # note order
-TEST_LINKFLAGS=-L$(SRCDIR) -lpsfex -lcfitsio -lm
-REC_LINKFLAGS=-L$(SRCDIR) -lpsfex -lcfitsio -lm
+TEST_LINKFLAGS=-L$(SRCDIR) -L$(FITSIO_BASE)/lib -lpsfex -lcfitsio -lm
+REC_LINKFLAGS=-L$(SRCDIR) -L$(FITSIO_BASE)/lib -lpsfex -lcfitsio -lm
 
-LIB_SOURCES = $(SRCDIR)/psfex.c $(SRCDIR)/psfex_fits.c
+LIB_SOURCES = $(SRCDIR)/psfex.c $(SRCDIR)/psfex_fits.c $(SRCDIR)/poly.c
 
 TEST_SOURCES = $(SRCDIR)/test.c
 REC_SOURCES = $(SRCDIR)/psfex-rec.c
@@ -62,7 +62,7 @@ install: $(LIB)
 all: $(TEST_PROG) $(REC_PROG)
 
 lib: $(LIB)
-	
+
 $(LIB): $(LIB_OBJECTS)
 	$(AR) $(ARFLAGS) $(LIB) $(LIB_OBJECTS)
 
