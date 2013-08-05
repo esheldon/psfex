@@ -13,7 +13,7 @@ SRCDIR=./src
 TEST_LINKFLAGS=-L$(SRCDIR) -lpsfex -lcfitsio -lm
 REC_LINKFLAGS=-L$(SRCDIR) -lpsfex -lcfitsio -lm
 
-LIB_SOURCES = $(SRCDIR)/psfex.c $(SRCDIR)/psfex_fits.c
+LIB_SOURCES = $(SRCDIR)/psfex.c $(SRCDIR)/psfex_fits.c $(SRCDIR)/poly.c
 
 TEST_SOURCES = $(SRCDIR)/test.c
 REC_SOURCES = $(SRCDIR)/psfex-rec.c

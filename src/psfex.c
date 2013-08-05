@@ -8,16 +8,18 @@
 #include "psfex.h"
 #include "poly.h"
 
-//static const double INTERPFAC = 3.0;
+static const double INTERPFAC = 3.0;
 //static const double INTERPFAC = 3.5;
 //static const double IINTERPFAC = 1.0/INTERPFAC;
 
 
+/*
 static double sinc(double x) {
     if (x<1e-5 && x>-1e-5)
         return 1.;
     return sin(x*M_PI)/(x*M_PI);
 }
+*/
 
 static
 struct psfex_eigens *psfex_eigens_new(long neigen,
@@ -107,11 +109,11 @@ struct psfex *psfex_new(long neigen,
         return self;
     }
 
-    self->interpfac=3.0;
-    self->iinterpfac=1/self->interpfac;
+    //self->interpfac=3.0;
+    //self->iinterpfac=1/self->interpfac;
 
     // maximum radius in the sample space (x/psf_samp)
-    self->maxrad = (ncol-1)/2. - self->interpfac;
+    self->maxrad = (ncol-1)/2. - INTERPFAC;
 
 
     // and the sextractor stuff...
@@ -266,6 +268,7 @@ struct psfex_image *psfex_image_free(struct psfex_image *self)
 
    The erow, ecol are the pixel coords for the eigen images
 */
+/*
 static
 double get_summed_eigen_pixel(const struct psfex *self,
                               double row_scaled, double col_scaled, 
@@ -284,6 +287,7 @@ double get_summed_eigen_pixel(const struct psfex *self,
     }
     return res;
 }
+*/
 /*
 
    Get the pixel value.  The central row and col are in the translated and
@@ -297,6 +301,7 @@ double get_summed_eigen_pixel(const struct psfex *self,
 
    you should check against maxrad before calling this function
 */
+/*
 static
 double get_pixel_value_samp(const struct psfex *self,
                             double row_scaled, double col_scaled,
@@ -336,6 +341,7 @@ double get_pixel_value_samp(const struct psfex *self,
 
     return pixval;
 }
+*/
 
 static void get_center(long nrow, long ncol,
                        double row, double col,
