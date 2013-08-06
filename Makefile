@@ -4,7 +4,7 @@ AR=ar
 
 prefix := /usr/local
 
-CFLAGS=-std=gnu99 -Wall -Werror -O2 -I$(FITSIO_BASE)/include
+CFLAGS=-std=gnu99 -Wall -O2 -I$(FITSIO_BASE)/include
 ARFLAGS=rcs
 
 SRCDIR=./src

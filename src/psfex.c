@@ -85,10 +85,10 @@ struct psfex *psfex_new(long neigen,
                         double polscale_col,
                         double psf_samp)
 {
-  int ndim, ngroup, deg[POLY_MAXDIM], group[POLY_MAXDIM];
-  int psfnaxis;
+    int ndim, ngroup, deg[POLY_MAXDIM], group[POLY_MAXDIM];
+    int psfnaxis;
 
-  struct psfex *self=calloc(1, sizeof(struct psfex));
+    struct psfex *self=calloc(1, sizeof(struct psfex));
     if (!self) {
         fprintf(stderr,"failed to allocate struct psfex\n");
         exit(1);
@@ -128,38 +128,35 @@ struct psfex *psfex_new(long neigen,
     self->maskdim = psfnaxis;
 
     deg[0] = poldeg;
-    //    fprintf(stdout,"About to do poly_init...\n");
     self->poly = poly_init(group,ndim,deg,ngroup);
 
     self->pixstep = (float) psf_samp;
 
     // read in eigens later...but allocate memory now.
     if ((self->maskcomp = (float *) calloc(neigen*nrow*ncol,sizeof(float))) == NULL) {
-      self=psfex_free(self);
-      return self;
+        self=psfex_free(self);
+        fprintf(stderr,"failed to allocate maskcomp\n");
+        exit(1);
     }
 
-    // and allocated memory for maskloc
     if ((self->maskloc = (float *) calloc(nrow*ncol,sizeof(float))) == NULL) {
-      self=psfex_free(self);
-      return self;
+        self=psfex_free(self);
+        fprintf(stderr,"failed to allocate maskloc\n");
+        exit(1);
     }
-
-    //fprintf(stdout,"Done making new psf\n");
 
     return self;
 }
 
 struct psfex *psfex_free(struct psfex *self)
 {
-  //fprintf(stdout,"Freeing self\n");
     if (self) {
         if (self->eigens) {
             self->eigens=psfex_eigens_free(self->eigens);
         }
-	poly_end(self->poly);
-	free(self->maskcomp);
-	free(self->maskloc);
+        poly_end(self->poly);
+        free(self->maskcomp);
+        free(self->maskloc);
         free(self);
         self=NULL;
     }
@@ -352,156 +349,274 @@ static void get_center(long nrow, long ncol,
     (*colcen) = (double)colcen_int + col_remain + 0.5;
 
 }
+
+
+/* from sextractor image.c */
+
+static int _psfex_vignet_resample(float *pix1, int w1, int h1,
+                                  float *pix2, int w2, int h2,
+                                  float dx, float dy, float step2)
+{
+    float	*mask,*maskt, xc1,xc2,yc1,yc2, xs1,ys1, x1,y1, x,y, dxm,dym,
+            val, norm,
+            *pix12, *pixin,*pixin0, *pixout,*pixout0;
+    int		i,j,k,n,t, *start,*startt, *nmask,*nmaskt,
+            ixs2,iys2, ix2,iy2, dix2,diy2, nx2,ny2, iys1a, ny1, hmw,hmh,
+            ix,iy, ix1,iy1;
+
+
+    /* Initialize destination buffer to zero */
+    memset(pix2, 0, w2*h2*sizeof(float));
+
+    xc1 = (float)(w1/2);	/* Im1 center x-coord*/
+    xc2 = (float)(w2/2);	/* Im2 center x-coord*/
+    xs1 = xc1 + dx - xc2*step2;	/* Im1 start x-coord */
+
+    if ((int)xs1 >= w1)
+        return -1;
+    ixs2 = 0;			/* Int part of Im2 start x-coord */
+    if (xs1<0.0)
+    {
+        dix2 = (int)(1-xs1/step2);
+        /*-- Simply leave here if the images do not overlap in x */
+        if (dix2 >= w2)
+            return -1;
+        ixs2 += dix2;
+        xs1 += dix2*step2;
+    }
+    nx2 = (int)((w1-1-xs1)/step2+1);/* nb of interpolated Im2 pixels along x */
+    if (nx2>(ix2=w2-ixs2))
+        nx2 = ix2;
+    if (nx2<=0)
+        return -1;
+    yc1 = (float)(h1/2);	/* Im1 center y-coord */
+    yc2 = (float)(h2/2);	/* Im2 center y-coord */
+    ys1 = yc1 + dy - yc2*step2;	/* Im1 start y-coord */
+    if ((int)ys1 >= h1)
+        return -1;
+    iys2 = 0;			/* Int part of Im2 start y-coord */
+    if (ys1<0.0)
+    {
+        diy2 = (int)(1-ys1/step2);
+        /*-- Simply leave here if the images do not overlap in y */
+        if (diy2 >= h2)
+            return -1;
+        iys2 += diy2;
+        ys1 += diy2*step2;
+    }
+    ny2 = (int)((h1-1-ys1)/step2+1);/* nb of interpolated Im2 pixels along y */
+    if (ny2>(iy2=h2-iys2))
+        ny2 = iy2;
+    if (ny2<=0)
+        return -1;
+
+    /* Set the yrange for the x-resampling with some margin for interpolation */
+    iys1a = (int)ys1;		/* Int part of Im1 start y-coord with margin */
+    hmh = INTERPW/2 - 1;		/* Interpolant start */
+    if (iys1a<0 || ((iys1a -= hmh)< 0))
+        iys1a = 0;
+    ny1 = (int)(ys1+ny2*step2)+INTERPW-hmh;	/* Interpolated Im1 y size */
+    if (ny1>h1)					/* with margin */
+        ny1 = h1;
+    /* Express everything relative to the effective Im1 start (with margin) */
+    ny1 -= iys1a;
+    ys1 -= (float)iys1a;
+
+    /* Allocate interpolant stuff for the x direction */
+    if ((mask = (float *) malloc(sizeof(float) * nx2 * INTERPW)) == NULL) /* Interpolation masks */
+        return -1;
+    if ((nmask = (int *) malloc(sizeof(int) * nx2)) == NULL) /* Interpolation mask sizes */
+        return -1;
+    if ((start = (int *) malloc(sizeof(int) * nx2)) == NULL) /* Int part of Im1 conv starts */
+        return -1;
+
+    /* Compute the local interpolant and data starting points in x */
+    hmw = INTERPW/2 - 1;
+    x1 = xs1;
+    maskt = mask;
+    nmaskt = nmask;
+    startt = start;
+    for (j=nx2; j--; x1+=step2)
+    {
+        ix = (ix1=(int)x1) - hmw;
+        dxm = ix1 - x1 - hmw;	/* starting point in the interpolation func */
+        if (ix < 0)
+        {
+            n = INTERPW+ix;
+            dxm -= (float)ix;
+            ix = 0;
+        }
+        else
+            n = INTERPW;
+        if (n>(t=w1-ix))
+            n=t;
+        *(startt++) = ix;
+        *(nmaskt++) = n;
+        norm = 0.0;
+        for (x=dxm, i=n; i--; x+=1.0)
+            norm += (*(maskt++) = INTERPF(x));
+        norm = norm>0.0? 1.0/norm : 1.0;
+        maskt -= n;
+        for (i=n; i--;)
+            *(maskt++) *= norm;
+    }
+
+    if ((pix12 = (float *) calloc(nx2*ny1, sizeof(float))) == NULL) { /* Intermediary frame-buffer */
+        return -1;
+    }
+
+    /* Make the interpolation in x (this includes transposition) */
+    pixin0 = pix1+iys1a*w1;
+    pixout0 = pix12;
+    for (k=ny1; k--; pixin0+=w1, pixout0++)
+    {
+        maskt = mask;
+        nmaskt = nmask;
+        startt = start;
+        pixout = pixout0;
+        for (j=nx2; j--; pixout+=ny1)
+        {
+            pixin = pixin0+*(startt++);
+            val = 0.0; 
+            for (i=*(nmaskt++); i--;)
+                val += *(maskt++)**(pixin++);
+            *pixout = val;
+        }
+    }
+
+    /* Reallocate interpolant stuff for the y direction */
+    if ((mask = (float *) realloc(mask, sizeof(float) * ny2 * INTERPW)) == NULL) { /* Interpolation masks */
+        return -1;
+    }
+    if ((nmask = (int *) realloc(nmask, sizeof(int) * ny2)) == NULL) { /* Interpolation mask sizes */
+        return -1;
+    }
+    if ((start = (int *) realloc(start, sizeof(int) * ny2)) == NULL) { /* Int part of Im1 conv starts */
+        return -1;
+    }
+
+    /* Compute the local interpolant and data starting points in y */
+    hmh = INTERPW/2 - 1;
+    y1 = ys1;
+    maskt = mask;
+    nmaskt = nmask;
+    startt = start;
+    for (j=ny2; j--; y1+=step2)
+    {
+        iy = (iy1=(int)y1) - hmh;
+        dym = iy1 - y1 - hmh;	/* starting point in the interpolation func */
+        if (iy < 0)
+        {
+            n = INTERPW+iy;
+            dym -= (float)iy;
+            iy = 0;
+        }
+        else
+            n = INTERPW;
+        if (n>(t=ny1-iy))
+            n=t;
+        *(startt++) = iy;
+        *(nmaskt++) = n;
+        norm = 0.0;
+        for (y=dym, i=n; i--; y+=1.0)
+            norm += (*(maskt++) = INTERPF(y));
+        norm = norm>0.0? 1.0/norm : 1.0;
+        maskt -= n;
+        for (i=n; i--;)
+            *(maskt++) *= norm;
+    }
+
+    /* Make the interpolation in y  and transpose once again */
+    pixin0 = pix12;
+    pixout0 = pix2+ixs2+iys2*w2;
+    for (k=nx2; k--; pixin0+=ny1, pixout0++)
+    {
+        maskt = mask;
+        nmaskt = nmask;
+        startt = start;
+        pixout = pixout0;
+        for (j=ny2; j--; pixout+=w2)
+        {
+            pixin = pixin0+*(startt++);
+            val = 0.0; 
+            for (i=*(nmaskt++); i--;)
+                val += *(maskt++)**(pixin++);
+            *pixout = val;
+        }
+    }
+
+    /* Free memory */
+    free(pix12);
+    free(mask);
+    free(nmask);
+    free(start);
+
+    return 0;
+}
+
 void _psfex_rec_fill(const struct psfex *self,
                      double row,
                      double col,
                      double *data)
 {
-  // THIS IS THE MAIN CODE...
-
-  //fprintf(stdout,"In _psfex_rec_fill\n");
-
-  // replace with psf_build (!)
-  // and fill the data array...this may be straightforward.
 
   static double pos[POLY_MAXDIM];
-  double *basis, fac;
-  float *ppc, *pl;
+  double *basis=NULL, fac;
+  float *ppc=NULL, *pl=NULL;
   int   i,n,p,ndim,npix;
-  float *resampled;
+  float *resampled=NULL;
   double rowpsf_cen=0, colpsf_cen=0;
-  //int j,k;
 
   npix = self->masksize[0]*self->masksize[1];
 
-  //fprintf(stdout,"memsetting...\n");
   memset(self->maskloc, 0, npix*sizeof(float));
 
-  //fprintf(stdout,"getting pos...\n");
   ndim = self->poly->ndim;
   pos[0] = col;
   pos[1] = row;
   for (i=0;i<ndim;i++) {
-    pos[i] = (pos[i] - self->contextoffset[i]) / self->contextscale[i];
+      pos[i] = (pos[i] - self->contextoffset[i]) / self->contextscale[i];
   }
 
-  //fprintf(stdout,"Running poly_func (%.2f/%.2f)...\n",pos[0],pos[1]);
   poly_func(self->poly, pos);
 
-  /*
-  fprintf(stdout,"POLY\nncoeff = %d\nndim = %d\nngroup=%d\n",self->poly->ncoeff,self->poly->ndim,self->poly->ngroup);
-  fprintf(stdout,"BASIS:\n");
-  for (i=0;i<self->poly->ndim;i++) {
-    fprintf(stdout,"%f ",self->poly->basis[i]);
-  }
-  fprintf(stdout,"\nCOEFF:\n");
-  for (i=0;i<self->poly->ndim;i++) {
-    fprintf(stdout,"%f ",self->poly->coeff[i]);
-  }
-  fprintf(stdout,"\nDEGREE:\n");
-  for (i=0;i<self->poly->ngroup;i++) {
-    fprintf(stdout,"%d ",self->poly->degree[i]);
-  }
-  fprintf(stdout,"\n");
-  */
   basis = self->poly->basis;
 
   ppc = self->maskcomp;
 
-  //fprintf(stdout,"Craziness...\n");
-  //fprintf(stdout,"maskdim, masksize[2] = %d, %d\n",self->maskdim, self->masksize[2]);
   for (n = (self->maskdim>2?self->masksize[2]:1); n--; ) {
-    pl = self->maskloc;
-    fac = *(basis++);
-    //fprintf(stdout,"pl = %.5f, fac = %.5f, ppc = %.5f\n", pl[311], fac, ppc[311]);
-    for (p=npix; p--;)
-      *(pl++) += fac**(ppc++);
+      pl = self->maskloc;
+      fac = *(basis++);
+      for (p=npix; p--;)
+          *(pl++) += fac**(ppc++);
   }
-  /*
-  fprintf(stdout,"pos: %.2f, %.2f\n",pos[0],pos[1]);
-  for (j=0;j<self->masksize[0];j++) {
-    for (k=0;k<self->masksize[1];k++) {
-      fprintf(stdout,"%.5f ",self->maskloc[k+j*self->masksize[0]]);
-    }
-    fprintf(stdout,"\n");
-  }
-  */
 
-  //fprintf(stdout,"Copying data...\n");
-  // and copy into the data...
-
-  // Need to resample...
+  // resample
   if ((resampled = (float *) calloc(npix,sizeof(float))) == NULL) {
-    return;
+        fprintf(stderr,"failed to allocate resampled\n");
+        exit(1);
   }
 
   get_center(PSFEX_NROW(self), PSFEX_NCOL(self), row, col, &rowpsf_cen, &colpsf_cen);
   rowpsf_cen -= (float)PSFEX_NROW(self)/2;
   colpsf_cen -= (float)PSFEX_NCOL(self)/2;
-  //fprintf(stdout,"center = %f, %f\n", rowpsf_cen, colpsf_cen);
   
-  _psfex_vignet_resample(self->maskloc, self->masksize[0], self->masksize[1],
-			 resampled, self->masksize[0], self->masksize[1],
-			 -(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
-			 self->pixstep);
-
-  /*for (j=0;j<self->masksize[0];j++) {
-    for (k=0;k<self->masksize[1];k++) {
-      fprintf(stdout,"%.5f ",fabs(resampled[k+j*self->masksize[0]]));
-    }
-    fprintf(stdout,"\n");
-    }*/
-
+  _psfex_vignet_resample(self->maskloc,
+                         self->masksize[0],
+                         self->masksize[1],
+                         resampled,
+                         self->masksize[0],
+                         self->masksize[1],
+                         -(float)colpsf_cen*self->pixstep,
+                         -(float)rowpsf_cen*self->pixstep,
+                         self->pixstep);
     
   for (i=0;i<npix;i++) {
-    //  data[i] = (double) self->maskloc[i];
-    data[i] = (double) resampled[i];
+      data[i] = (double) resampled[i];
   }
 
   free(resampled);
 
-
-  /*
-    long nrow = PSFEX_NROW(self);
-    long ncol = PSFEX_NCOL(self);
-
-    double row_scaled = (row-self->polzero_row)/self->polscale_row;
-    double col_scaled = (col-self->polzero_col)/self->polscale_col;
-
-    double sampfac = 1./(self->psf_samp*self->psf_samp);
-
-    double rowpsf_cen=0, colpsf_cen=0;
-    get_center(nrow, ncol, row, col, &rowpsf_cen, &colpsf_cen);
-
-    double sum=0;
-    for (long rowpsf=0; rowpsf<nrow; rowpsf++) {
-        double drow_samp = (rowpsf-rowpsf_cen)/self->psf_samp;
-        if (fabs(drow_samp) > self->maxrad)
-            continue;
-
-        for (long colpsf=0; colpsf<ncol; colpsf++) {
-
-            double dcol_samp = (colpsf-colpsf_cen)/self->psf_samp;
-            if (fabs(dcol_samp) > self->maxrad)
-                continue;
-
-            // pixle value in sample coords
-            double pixval = get_pixel_value_samp(self, row_scaled, col_scaled, 
-                                                 drow_samp, dcol_samp);
-            // in pixel coords
-            pixval *= sampfac;
-
-            data[rowpsf*ncol + colpsf] = pixval;
-            sum += pixval;
-        }
-    }
-
-    double normfac=1./sum;
-    long totpix=PSFEX_SIZE(self);
-    for (long i=0; i<totpix; i++) {
-        data[i] *= normfac;
-    }
-  */
 }
 
 
@@ -548,205 +663,4 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
 }
 
 
-/* from sextractor image.c */
 
-int _psfex_vignet_resample(float *pix1, int w1, int h1,
-			   float *pix2, int w2, int h2,
-			   float dx, float dy, float step2)
-{
-  float	*mask,*maskt, xc1,xc2,yc1,yc2, xs1,ys1, x1,y1, x,y, dxm,dym,
-    val, norm,
-    *pix12, *pixin,*pixin0, *pixout,*pixout0;
-  int		i,j,k,n,t, *start,*startt, *nmask,*nmaskt,
-    ixs2,iys2, ix2,iy2, dix2,diy2, nx2,ny2, iys1a, ny1, hmw,hmh,
-    ix,iy, ix1,iy1;
-  
-
-  /* Initialize destination buffer to zero */
-  memset(pix2, 0, w2*h2*sizeof(float));
-  
-  xc1 = (float)(w1/2);	/* Im1 center x-coord*/
-  xc2 = (float)(w2/2);	/* Im2 center x-coord*/
-  xs1 = xc1 + dx - xc2*step2;	/* Im1 start x-coord */
-
-  if ((int)xs1 >= w1)
-    return -1;
-  ixs2 = 0;			/* Int part of Im2 start x-coord */
-  if (xs1<0.0)
-    {
-      dix2 = (int)(1-xs1/step2);
-      /*-- Simply leave here if the images do not overlap in x */
-      if (dix2 >= w2)
-	return -1;
-      ixs2 += dix2;
-      xs1 += dix2*step2;
-    }
-  nx2 = (int)((w1-1-xs1)/step2+1);/* nb of interpolated Im2 pixels along x */
-  if (nx2>(ix2=w2-ixs2))
-    nx2 = ix2;
-  if (nx2<=0)
-    return -1;
-  yc1 = (float)(h1/2);	/* Im1 center y-coord */
-  yc2 = (float)(h2/2);	/* Im2 center y-coord */
-  ys1 = yc1 + dy - yc2*step2;	/* Im1 start y-coord */
-  if ((int)ys1 >= h1)
-    return -1;
-  iys2 = 0;			/* Int part of Im2 start y-coord */
-  if (ys1<0.0)
-    {
-    diy2 = (int)(1-ys1/step2);
-    /*-- Simply leave here if the images do not overlap in y */
-    if (diy2 >= h2)
-      return -1;
-    iys2 += diy2;
-    ys1 += diy2*step2;
-    }
-  ny2 = (int)((h1-1-ys1)/step2+1);/* nb of interpolated Im2 pixels along y */
-  if (ny2>(iy2=h2-iys2))
-    ny2 = iy2;
-  if (ny2<=0)
-    return -1;
-
-  /* Set the yrange for the x-resampling with some margin for interpolation */
-  iys1a = (int)ys1;		/* Int part of Im1 start y-coord with margin */
-  hmh = INTERPW/2 - 1;		/* Interpolant start */
-  if (iys1a<0 || ((iys1a -= hmh)< 0))
-    iys1a = 0;
-  ny1 = (int)(ys1+ny2*step2)+INTERPW-hmh;	/* Interpolated Im1 y size */
-  if (ny1>h1)					/* with margin */
-    ny1 = h1;
-  /* Express everything relative to the effective Im1 start (with margin) */
-  ny1 -= iys1a;
-  ys1 -= (float)iys1a;
-
-  /* Allocate interpolant stuff for the x direction */
-  if ((mask = (float *) malloc(sizeof(float) * nx2 * INTERPW)) == NULL) /* Interpolation masks */
-    return -1;
-  if ((nmask = (int *) malloc(sizeof(int) * nx2)) == NULL) /* Interpolation mask sizes */
-    return -1;
-  if ((start = (int *) malloc(sizeof(int) * nx2)) == NULL) /* Int part of Im1 conv starts */
-    return -1;
-  
-  /* Compute the local interpolant and data starting points in x */
-  hmw = INTERPW/2 - 1;
-  x1 = xs1;
-  maskt = mask;
-  nmaskt = nmask;
-  startt = start;
-  for (j=nx2; j--; x1+=step2)
-    {
-    ix = (ix1=(int)x1) - hmw;
-    dxm = ix1 - x1 - hmw;	/* starting point in the interpolation func */
-    if (ix < 0)
-      {
-      n = INTERPW+ix;
-      dxm -= (float)ix;
-      ix = 0;
-      }
-    else
-      n = INTERPW;
-    if (n>(t=w1-ix))
-      n=t;
-    *(startt++) = ix;
-    *(nmaskt++) = n;
-    norm = 0.0;
-    for (x=dxm, i=n; i--; x+=1.0)
-      norm += (*(maskt++) = INTERPF(x));
-    norm = norm>0.0? 1.0/norm : 1.0;
-    maskt -= n;
-    for (i=n; i--;)
-      *(maskt++) *= norm;
-    }
-
-  if ((pix12 = (float *) calloc(nx2*ny1, sizeof(float))) == NULL) { /* Intermediary frame-buffer */
-    return -1;
-  }
-  
-/* Make the interpolation in x (this includes transposition) */
-  pixin0 = pix1+iys1a*w1;
-  pixout0 = pix12;
-  for (k=ny1; k--; pixin0+=w1, pixout0++)
-    {
-    maskt = mask;
-    nmaskt = nmask;
-    startt = start;
-    pixout = pixout0;
-    for (j=nx2; j--; pixout+=ny1)
-      {
-      pixin = pixin0+*(startt++);
-      val = 0.0; 
-      for (i=*(nmaskt++); i--;)
-        val += *(maskt++)**(pixin++);
-      *pixout = val;
-      }
-    }
-
-/* Reallocate interpolant stuff for the y direction */
-  if ((mask = (float *) realloc(mask, sizeof(float) * ny2 * INTERPW)) == NULL) { /* Interpolation masks */
-    return -1;
-  }
-  if ((nmask = (int *) realloc(nmask, sizeof(int) * ny2)) == NULL) { /* Interpolation mask sizes */
-    return -1;
-  }
-  if ((start = (int *) realloc(start, sizeof(int) * ny2)) == NULL) { /* Int part of Im1 conv starts */
-    return -1;
-  }
-
-/* Compute the local interpolant and data starting points in y */
-  hmh = INTERPW/2 - 1;
-  y1 = ys1;
-  maskt = mask;
-  nmaskt = nmask;
-  startt = start;
-  for (j=ny2; j--; y1+=step2)
-    {
-    iy = (iy1=(int)y1) - hmh;
-    dym = iy1 - y1 - hmh;	/* starting point in the interpolation func */
-    if (iy < 0)
-      {
-      n = INTERPW+iy;
-      dym -= (float)iy;
-      iy = 0;
-      }
-    else
-      n = INTERPW;
-    if (n>(t=ny1-iy))
-      n=t;
-    *(startt++) = iy;
-    *(nmaskt++) = n;
-    norm = 0.0;
-    for (y=dym, i=n; i--; y+=1.0)
-      norm += (*(maskt++) = INTERPF(y));
-    norm = norm>0.0? 1.0/norm : 1.0;
-    maskt -= n;
-    for (i=n; i--;)
-      *(maskt++) *= norm;
-    }
-
-/* Make the interpolation in y  and transpose once again */
-  pixin0 = pix12;
-  pixout0 = pix2+ixs2+iys2*w2;
-  for (k=nx2; k--; pixin0+=ny1, pixout0++)
-    {
-    maskt = mask;
-    nmaskt = nmask;
-    startt = start;
-    pixout = pixout0;
-    for (j=ny2; j--; pixout+=w2)
-      {
-      pixin = pixin0+*(startt++);
-      val = 0.0; 
-      for (i=*(nmaskt++); i--;)
-        val += *(maskt++)**(pixin++);
-      *pixout = val;
-      }
-    }
-
-/* Free memory */
-  free(pix12);
-  free(mask);
-  free(nmask);
-  free(start);
-
-  return 0;
-  }

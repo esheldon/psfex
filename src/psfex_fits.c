@@ -105,8 +105,6 @@ static void read_eigens(struct psfex *self, fitsfile *fits, int *status)
 
     double *data=self->eigens->rows[0];
 
-    //fprintf(stdout,"Read eigens...\n");
-
     int colnum=0;
     if (fits_get_colnum(fits, 0, "PSF_MASK", &colnum, status)) {
         fits_report_error(stderr,*status);
@@ -123,8 +121,6 @@ static void read_eigens(struct psfex *self, fitsfile *fits, int *status)
       fits_report_error(stderr,(*status));
     }
 
-    //fprintf(stdout,"Done with reading.\n");
-    
 }
 static struct psfex *psfex_from_fits(fitsfile *fits)
 {
@@ -300,7 +296,6 @@ struct psfex_image *psfex_image_read_fits(const char *fname, int ext,
         goto _psfex_image_read_fits_bail;
     }
     // dims reversed
-    //fprintf(stderr,"dims: [%lld,%lld]\n", dims[0], dims[1]);
 
     // note dims are reversed
     image=psfex_image_new(dims[1], dims[0]);

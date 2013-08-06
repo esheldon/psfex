@@ -46,26 +46,18 @@ struct psfex {
 
     struct psfex_eigens *eigens;
 
-  // and the alternative stuff from sextractor...
-  int		maskdim;	/* Dimensionality of the tabulated data */
-  //int		*masksize;	/* PSF mask dimensions */
-  int           masksize[3];
-  int		masknpix;	/* Total number of involved PSF pixels */
-  float		*maskcomp;      /* Complete pix. data (PSF components) */
-  float		*maskloc;	/* Local PSF */
-  //  double	**context;	/* Contexts */
-  // t_type	*contexttyp;	/* Context types */
-  // char		**contextname;	/* Array of context key-names */
-  //double	*contextoffset;	/* Offset to apply to context data */
-  //double	*contextscale;	/* Scaling to apply to context data */
-  double        contextoffset[2];
-  double        contextscale[2];
-  struct poly	*poly;		/* Polynom describing the PSF variations */
-  //pcstruct	*pc;		/* PC components */
-  //double	fwhm;		/* Typical PSF FWHM */
-  float		pixstep;	/* PSF sampling step */
-  int		build_flag;	/* Set if the current PSF has been computed */
-  
+    // and the alternative stuff from sextractor...
+    int     maskdim;          /* Dimensionality of the tabulated data */
+    int     masksize[3];
+    int     masknpix;         /* Total number of involved PSF pixels */
+    float  *maskcomp;         /* Complete pix. data (PSF components) */
+    float  *maskloc;	      /* Local PSF */
+    double  contextoffset[2];
+    double  contextscale[2];
+    struct  poly	*poly;    /* Polynom describing the PSF variations */
+    float   pixstep;	      /* PSF sampling step */
+    int     build_flag;	      /* Set if the current PSF has been computed */
+
 };
 
 
@@ -138,12 +130,5 @@ struct psfex_image *psfex_image_free(struct psfex_image *self);
 struct psfex_image *psfex_rec_image(const struct psfex *self,
                                     double row,
                                     double col);
-
-int _psfex_vignet_resample(float *pix1, int w1, int h1,
-			   float *pix2, int w2, int h2,
-			   float dx, float dy, float step2);
-
-
-
 
 #endif
