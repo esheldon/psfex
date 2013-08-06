@@ -9,9 +9,7 @@
 #include "poly.h"
 
 static const double INTERPFAC = 3.0;
-//static const double INTERPFAC = 3.5;
-//static const double IINTERPFAC = 1.0/INTERPFAC;
-
+static const double IINTERPFAC = .3333333333333333333333333333;
 
 /*
 static double sinc(double x) {
@@ -109,12 +107,8 @@ struct psfex *psfex_new(long neigen,
         return self;
     }
 
-    //self->interpfac=3.0;
-    //self->iinterpfac=1/self->interpfac;
-
     // maximum radius in the sample space (x/psf_samp)
     self->maxrad = (ncol-1)/2. - INTERPFAC;
-
 
     // and the sextractor stuff...
     ndim = 2;  // this is fixed
@@ -317,17 +311,17 @@ double get_pixel_value_samp(const struct psfex *self,
     // erow,ecol is for row in the eigen image set
     for(long erow=0; erow<nrow; erow++) {
         double derow = fabs(erow - 0.5*nrow - drow_samp);
-        if (derow > self->interpfac)
+        if (derow > INTERPFAC)
             continue;
 
-        double derowdiv = derow*self->iinterpfac;
+        double derowdiv = derow*IINTERPFAC;
 
         for(long ecol=0; ecol<ncol; ecol++) {
             double decol = fabs(ecol - 0.5*ncol - dcol_samp);
-            if (decol > self->interpfac)
+            if (decol > INTERPFAC)
                 continue;
 
-            double decoldiv = decol*self->iinterpfac;
+            double decoldiv = decol*IINTERPFAC;
 
             double interpolant = 
                 sinc(derow)*sinc(derowdiv)*sinc(decol)*sinc(decoldiv);
@@ -444,16 +438,12 @@ void _psfex_rec_fill(const struct psfex *self,
   get_center(PSFEX_NROW(self), PSFEX_NCOL(self), row, col, &rowpsf_cen, &colpsf_cen);
   rowpsf_cen -= (float)PSFEX_NROW(self)/2;
   colpsf_cen -= (float)PSFEX_NCOL(self)/2;
-  fprintf(stdout,"center = %f, %f\n", rowpsf_cen, colpsf_cen);
+  //fprintf(stdout,"center = %f, %f\n", rowpsf_cen, colpsf_cen);
   
   _psfex_vignet_resample(self->maskloc, self->masksize[0], self->masksize[1],
 			 resampled, self->masksize[0], self->masksize[1],
-			 -0.51*self->pixstep,-0.74*self->pixstep,
+			 -(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
 			 self->pixstep);
-			 //-(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
-			 //self->pixstep);
-			 //-(float)colpsf_cen*self->pixstep, -(float)rowpsf_cen*self->pixstep,
-			 // self->pixstep);
 
   /*for (j=0;j<self->masksize[0];j++) {
     for (k=0;k<self->masksize[1];k++) {

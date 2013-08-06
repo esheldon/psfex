@@ -44,9 +44,6 @@ struct psfex {
 
     double maxrad;
 
-    double interpfac;
-    double iinterpfac;
-
     struct psfex_eigens *eigens;
 
   // and the alternative stuff from sextractor...
@@ -145,6 +142,8 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
 int _psfex_vignet_resample(float *pix1, int w1, int h1,
 			   float *pix2, int w2, int h2,
 			   float dx, float dy, float step2);
+
+
 
 
 #endif
