@@ -27,7 +27,6 @@ static void copy_eigens(struct psfex *self, PyObject *eigens_obj)
     size=PSFEX_SIZE_TOT(self);
     memcpy(self->eigens->rows[0], data, size);
 
-    //fprintf(stdout,"Copying eigens... [%d]\n",size);
     for (i=0;i<size;i++) {
       self->maskcomp[i] = (float) data[i];
     }
