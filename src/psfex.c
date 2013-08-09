@@ -130,7 +130,7 @@ struct psfex *psfex_new(long neigen,
     deg[0] = poldeg;
     self->poly = poly_init(group,ndim,deg,ngroup);
 
-    self->pixstep = (float) psf_samp;
+    self->pixstep = 1./(float) psf_samp;
 
     // read in eigens later...but allocate memory now.
     if ((self->maskcomp = (float *) calloc(neigen*nrow*ncol,sizeof(float))) == NULL) {
@@ -334,22 +334,35 @@ double get_pixel_value_samp(const struct psfex *self,
 }
 */
 
+ /*
 static void get_center(long nrow, long ncol,
                        double row, double col,
                        double *rowcen, double *colcen)
 {
+  double dcol,drow;
 
-    long rowcen_int=(nrow-1)/2;
+  dcol = col - (int)(col + 0.49999);
+  drow = row - (int)(row + 0.49999);
+
+  *colcen = dcol - (float)(ncol/2);
+  *rowcen = drow - (float)(nrow/2);
+
+  fprintf(stdout,"dcol = %.8f drow = %.8f\n",dcol,drow);
+  fprintf(stdout,"colcen = %.8f rowcen = %.8f\n",*colcen,*rowcen);
+  
+  
+  long rowcen_int=(nrow-1)/2;
     long colcen_int=(ncol-1)/2;
 
     double row_remain=row-floor(row);
     double col_remain=col-floor(col);
 
-    (*rowcen) = (double)rowcen_int + row_remain + 0.5;
-    (*colcen) = (double)colcen_int + col_remain + 0.5;
+    (*rowcen) = (double)rowcen_int + row_remain;// + 0.5;
+    (*colcen) = (double)colcen_int + col_remain;// + 0.5;
 
+    fprintf(stdout,"colcen = %.8f rowcen = %.8f\n",*colcen,*rowcen);
 }
-
+*/
 
 /* from sextractor image.c */
 
@@ -565,7 +578,9 @@ void _psfex_rec_fill(const struct psfex *self,
   float *ppc=NULL, *pl=NULL;
   int   i,n,p,ndim,npix;
   float *resampled=NULL;
-  double rowpsf_cen=0, colpsf_cen=0;
+  //double rowpsf_cen=0, colpsf_cen=0;
+  double dcol,drow;
+  //int ii,jj;
 
   npix = self->masksize[0]*self->masksize[1];
 
@@ -581,12 +596,11 @@ void _psfex_rec_fill(const struct psfex *self,
   poly_func(self->poly, pos);
 
   basis = self->poly->basis;
-
   ppc = self->maskcomp;
 
   for (n = (self->maskdim>2?self->masksize[2]:1); n--; ) {
       pl = self->maskloc;
-      fac = *(basis++);
+      fac = (float)*(basis++);
       for (p=npix; p--;)
           *(pl++) += fac**(ppc++);
   }
@@ -597,9 +611,8 @@ void _psfex_rec_fill(const struct psfex *self,
         exit(1);
   }
 
-  get_center(PSFEX_NROW(self), PSFEX_NCOL(self), row, col, &rowpsf_cen, &colpsf_cen);
-  rowpsf_cen -= (float)PSFEX_NROW(self)/2;
-  colpsf_cen -= (float)PSFEX_NCOL(self)/2;
+  dcol = col - (int)(col+0.49999);
+  drow = row - (int)(row+0.49999);
   
   _psfex_vignet_resample(self->maskloc,
                          self->masksize[0],
@@ -607,10 +620,10 @@ void _psfex_rec_fill(const struct psfex *self,
                          resampled,
                          self->masksize[0],
                          self->masksize[1],
-                         -(float)colpsf_cen*self->pixstep,
-                         -(float)rowpsf_cen*self->pixstep,
+                         -(float)dcol*self->pixstep,
+                         -(float)drow*self->pixstep,
                          self->pixstep);
-    
+
   for (i=0;i<npix;i++) {
       data[i] = (double) resampled[i];
   }
