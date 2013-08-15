@@ -5,123 +5,150 @@
 #define CFITSIO_MAX_ARRAY_DIMS 99
 
 static void read_keys(fitsfile *fits,
-                      long *neigen,
-                      long *nrow,   // per eigen
-                      long *ncol,   // per eigen
-                      long *poldeg,
-                      double *polzero_row,
-                      double *polzero_col,
-                      double *polscale_row,
-                      double *polscale_col,
-                      double *psf_samp,
-                      int *status)
+		      long *masksize,  // [MASK_DIM]
+		      long *poldeg,
+		      double *contextoffset, // [POLY_DIM]
+		      double *contextscale, // [POLY_DIM]
+		      double *psf_samp,
+		      int *status)
 {
-    // first some checks
-    long polnaxis;
+    long polnaxis, psfnaxis, polngrp;
+    int i;
+    char gstr[MAX_STR];
+
+    // First part: check for dimensionality...
+    //  (In future we can port over the rest of the sextractor code
+    //   to read in different types of psf files if this becomes necessary.)
+    
+    
+    // Read in the polynomial number of axes (require 2)
     if (fits_read_key_lng(fits,"POLNAXIS",&polnaxis,NULL, status)) {
         fits_report_error(stderr,*status);
         return;
     }
-    if (polnaxis != 2) {
-        fprintf(stderr,"expected POLNAXIS==2, got %ld", polnaxis);
-        *status=1;
-        return;
+    if (polnaxis != POLY_DIM) {
+	fprintf(stderr,"Expected POLNAXIS==%d, got %ld\n",POLY_DIM, polnaxis);
+	*status=1;
+	return;
     }
-    long psfnaxis;
+
+    // Read in the psf number of axes (require 3)
     if (fits_read_key_lng(fits,"PSFNAXIS",&psfnaxis,NULL, status)) {
         fits_report_error(stderr,*status);
         return;
     }
-    if (psfnaxis != 3) {
-        fprintf(stderr,"expected PSFNAXIS==3, got %ld", psfnaxis);
+    if (psfnaxis != MASK_DIM) {
+        fprintf(stderr,"expected PSFNAXIS==%d, got %ld", MASK_DIM, psfnaxis);
         *status=1;
         return;
     }
-    long polngrp;
+
+    // Read in number of groups (require 1)
     if (fits_read_key_lng(fits,"POLNGRP",&polngrp,NULL, status)) {
         fits_report_error(stderr,*status);
         return;
     }
-    if (polngrp != 1) {
-        fprintf(stderr,"expected POLNGRP==1, got %ld", polngrp);
+    if (polngrp != POLY_NGROUP) {
+        fprintf(stderr,"expected POLNGRP==%d, got %ld", POLY_NGROUP, polngrp);
         *status=1;
         return;
     }
 
-
-
-    // these we keep
-    if (fits_read_key_lng(fits,"PSFAXIS3",neigen,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
+    // These next values we have to record...
+    for (i=0;i<MASK_DIM;i++) {
+	snprintf(gstr,MAX_STR,"PSFAXIS%1d", i+1);
+	if (fits_read_key_lng(fits, gstr, &masksize[i], NULL, status)) {
+	    fits_report_error(stderr,*status);
+	    return;
+	}
     }
-    if (fits_read_key_lng(fits,"PSFAXIS2",nrow,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
-    }
-    if (fits_read_key_lng(fits,"PSFAXIS1",ncol,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
-    }
+    
     if (fits_read_key_lng(fits,"POLDEG1",poldeg,NULL, status)) {
         fits_report_error(stderr,*status);
         return;
     }
 
-
-    if (fits_read_key_dbl(fits,"POLZERO2",polzero_row,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
+    for (i=0;i<POLY_DIM;i++) {
+	snprintf(gstr,MAX_STR,"POLZERO%1d", i+1);
+	if (fits_read_key_dbl(fits,gstr,&contextoffset[i],NULL,status)) {
+	    fits_report_error(stderr,*status);
+	    return;
+	}
+	snprintf(gstr,MAX_STR,"POLSCAL%1d", i+1);
+	if (fits_read_key_dbl(fits,gstr,&contextscale[i],NULL,status)) {
+	    fits_report_error(stderr,*status);
+	    return;
+	}
     }
-    if (fits_read_key_dbl(fits,"POLZERO1",polzero_col,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
-    }
-    if (fits_read_key_dbl(fits,"POLSCAL2",polscale_row,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
-    }
-    if (fits_read_key_dbl(fits,"POLSCAL1",polscale_col,NULL, status)) {
-        fits_report_error(stderr,*status);
-        return;
-    }
-
+    
     if (fits_read_key_dbl(fits,"PSF_SAMP",psf_samp,NULL, status)) {
         fits_report_error(stderr,*status);
         return;
     }
 
-
-
 }
 
-static void read_eigens(struct psfex *self, fitsfile *fits, int *status)
+static void read_psf_mask(struct psfex *self, fitsfile *fits, int *status)
 {
-
     double nulval=0;
     LONGLONG firstrow=1;
     LONGLONG firstelem=1;
-    LONGLONG nread=self->eigens->mosaic_size;
-
-    double *data=self->eigens->rows[0];
+    LONGLONG nread;
 
     int colnum=0;
+
+    nread = PSFEX_SIZE(self) * PSFEX_NCOMP(self);
+    
     if (fits_get_colnum(fits, 0, "PSF_MASK", &colnum, status)) {
-        fits_report_error(stderr,*status);
-        return;
-    }
- 
-    if (fits_read_col_dbl(fits, colnum, firstrow, firstelem, nread,
-                          nulval, data, NULL, status)) {
-        fits_report_error(stderr,(*status));
+	fits_report_error(stderr,*status);
+	return;
     }
 
-    if (fits_read_col_flt(fits, colnum, firstrow, firstelem, nread,
+    if (fits_read_col_dbl(fits, colnum, firstrow, firstelem, nread,
 			  nulval, self->maskcomp, NULL, status)) {
-      fits_report_error(stderr,(*status));
+	fits_report_error(stderr,*status);
     }
+}
+
+static struct psfex *psfex_from_fits(fitsfile *fits)
+{
+    struct psfex *self=NULL;
+    long masksize[MASK_DIM],poldeg;
+    double contextoffset[POLY_DIM], contextscale[POLY_DIM], psf_samp;
+    int status=0;
+
+    read_keys(fits,
+	      masksize,
+	      &poldeg,
+	      contextoffset,
+	      contextscale,
+	      &psf_samp,
+	      &status);
+
+    if (status != 0 ) {
+        goto _psfex_from_fits_bail;
+    }
+
+    self=psfex_new(masksize,
+		   poldeg,
+		   contextoffset,
+		   contextscale,
+		   psf_samp);
+
+    read_psf_mask(self, fits, &status);
+
+    if (status != 0) {
+        self=psfex_free(self);
+    }
+
+	
+_psfex_from_fits_bail:
+    return self;
+
 
 }
+
+/*
 static struct psfex *psfex_from_fits(fitsfile *fits)
 {
     struct psfex *self=NULL;
@@ -170,6 +197,8 @@ _psfex_from_fits_bail:
     return self;
 
 }
+*/
+
 struct psfex *psfex_fits_read(const char *filename)
 {
     int status=0;
