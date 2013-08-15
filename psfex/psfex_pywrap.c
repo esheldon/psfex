@@ -1,5 +1,5 @@
 /*
-   No error checking on the eigens array is done, do that in python
+   No error checking on the psf_mask array is done, do that in python
    Make sure it is native byte order and C order.
 */
 #include <Python.h>
@@ -17,88 +17,66 @@ PyPSFExObject_dealloc(struct PyPSFExObject* self)
     self->ob_type->tp_free((PyObject*)self);
 }
 
-// do your type checking in python!
-static void copy_eigens(struct psfex *self, PyObject *eigens_obj)
+// do type checking in python!
+static void copy_psf_mask(struct psfex *self, PyObject *psf_mask_obj)
 {
     long size=0;
-    double *data = (double* )PyArray_DATA(eigens_obj);
-    int i;
+    double *data = (double *) PyArray_DATA(psf_mask_obj);
 
-    size=PSFEX_SIZE_TOT(self);
-    memcpy(self->eigens->rows[0], data, size);
+    size=PSFEX_SIZE(self)*PSFEX_NCOMP(self)*sizeof(double);
 
-    for (i=0;i<size;i++) {
-      self->maskcomp[i] = (float) data[i];
-    }
+    memcpy(self->maskcomp, data, size);
 }
+
 
 static int
 PyPSFExObject_init(struct PyPSFExObject* self, PyObject *args)
 {
-    long neigen=0;
-    long nrow=0;   // per eigen
-    long ncol=0;   // per eigen
-    long poldeg=0;
-    double polzero_row=0;
-    double polzero_col=0;
-    double polscale_row=0;
-    double polscale_col=0;
-    double psf_samp=0;
-    PyObject *eigens_obj=NULL;
+    PyObject *masksize_obj = NULL;
+    long poldeg;
+    PyObject *contextoffset_obj = NULL;
+    PyObject *contextscale_obj = NULL;
+    double psf_samp;
+    PyObject *psf_mask_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, 
-                          (char*)"lllldddddO", 
-                          &neigen,
-                          &nrow,
-                          &ncol,
-                          &poldeg,
-                          &polzero_row,
-                          &polzero_col,
-                          &polscale_row,
-                          &polscale_col,
-                          &psf_samp,
-                          &eigens_obj)) {
+    long *masksize;
+    double *contextoffset, *contextscale;
+
+    // can totally redo this object-wise.
+
+    if (!PyArg_ParseTuple(args,
+			  (char*)"OlOOdO",
+			  &masksize_obj,
+			  &poldeg,
+			  &contextoffset_obj,
+			  &contextscale_obj,
+			  &psf_samp,
+			  &psf_mask_obj)) {
         printf("failed to Parse init");
         return -1;
     }
 
-    self->psfex=psfex_new(neigen,
-                          nrow,   // per eigen
-                          ncol,   // per eigen
-                          poldeg,
-                          polzero_row,
-                          polzero_col,
-                          polscale_row,
-                          polscale_col,
-                          psf_samp);
+    masksize = (long *) PyArray_DATA(masksize_obj);
+    contextoffset = (double *) PyArray_DATA(contextoffset_obj);
+    contextscale = (double *) PyArray_DATA(contextscale_obj);
+
+    self->psfex=psfex_new(masksize,
+			  poldeg,
+			  contextoffset,
+			  contextscale,
+			  psf_samp);
+
     if (!self->psfex) {
         return -1;
     }
 
-    copy_eigens(self->psfex, eigens_obj);
+    copy_psf_mask(self->psfex, psf_mask_obj);
+
     return 0;
 }
 
 static PyObject *
 PyPSFExObject_repr(struct PyPSFExObject* self) {
-    /*
-    char repr[255];
-    if (self->cosmo != NULL) {
-        sprintf(repr, "flat:    %d\n"
-                      "DH:      %f\n"
-                      "omega_m: %f\n" 
-                      "omega_l: %f\n" 
-                      "omega_k: %f", 
-                      self->cosmo->flat, 
-                      self->cosmo->DH, 
-                      self->cosmo->omega_m, 
-                      self->cosmo->omega_l, 
-                      self->cosmo->omega_k);
-        return PyString_FromString(repr);
-    }  else {
-        return PyString_FromString("");
-    }
-    */
     return PyString_FromString("");
 }
 
@@ -129,10 +107,39 @@ PyObject *PyPSFExObject_rec(struct PyPSFExObject* self, PyObject *args)
     return image;
 }
 
+PyObject *PyPSFExObject_center(struct PyPSFExObject *self, PyObject *args)
+{
+    PyObject *retval = NULL;
+    double row=0, col=0;
+    double rowcen, colcen;
+    
+    int ndims=1;
+    npy_intp dims[1];
+    double *data;
 
+    
+    if (!PyArg_ParseTuple(args, (char*)"dd", &row, &col)) {
+	return NULL;
+    }
+
+    get_center(PSFEX_NROW(self->psfex), PSFEX_NCOL(self->psfex),
+	       row, col,
+	       self->psfex->pixstep,
+	       &rowcen, &colcen);
+
+    dims[0] = 2;
+    retval = PyArray_SimpleNew(ndims, dims, NPY_FLOAT64);
+
+    data = (double *) PyArray_DATA(retval);
+    data[0] = rowcen;
+    data[1] = colcen;
+
+    return retval;
+}
 
 static PyMethodDef PyPSFExObject_methods[] = {
     {"rec",   (PyCFunction)PyPSFExObject_rec,  METH_VARARGS, "rec\n\nrec(row,col)"},
+    {"center", (PyCFunction)PyPSFExObject_center, METH_VARARGS, "center\n\ncenter(row,col)"},
     {NULL}  /* Sentinel */
 };
 

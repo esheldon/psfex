@@ -2,8 +2,11 @@ import fitsio
 import numpy
 from . import _psfex_pywrap
 
-INTERPFAC = 3.0
-EIGEN_DTYPE = 'f8'
+DOUBLE_DTYPE = 'f8'
+LONG_DTYPE = 'i8'
+POLY_DIM = 2
+MASK_DIM = 3
+POLY_NGROUP = 1
 
 class PSFEx(dict):
     def __init__(self, filename):
@@ -23,16 +26,18 @@ class PSFEx(dict):
         Get the "center" in the reconstruction for the
         input location
         """
-        from math import floor
-        rowcen_int=(self['nrow']-1)//2
-        colcen_int=(self['ncol']-1)//2
+        return self._psfex.center(row, col)
+        
+        #from math import floor
+        #rowcen_int=(self['nrow']-1)//2
+        #colcen_int=(self['ncol']-1)//2
 
-        row_remain=row-floor(row)
-        col_remain=col-floor(col)
+        #row_remain=row-floor(row)
+        #col_remain=col-floor(col)
 
-        rowcen = float(rowcen_int) + row_remain
-        colcen = float(colcen_int) + col_remain
-        return rowcen, colcen
+        #rowcen = float(rowcen_int) + row_remain
+        #colcen = float(colcen_int) + col_remain
+        #return rowcen, colcen
 
     def get_fwhm(self):
         """
@@ -58,46 +63,49 @@ class PSFEx(dict):
 
         self['filename'] = filename
         with fitsio.FITS(filename) as fits:
-            eigens=fits['psf_data']['psf_mask'][:]
-            eigens=numpy.array(eigens, dtype=EIGEN_DTYPE)
+            psf_mask=fits['psf_data']['psf_mask'][:]
+            psf_mask=numpy.array(psf_mask, dtype=DOUBLE_DTYPE)
 
             h=fits['psf_data'].read_header()
 
         # make a copy, will be native byte order
-        self._eigens=eigens
+        self._psf_mask=psf_mask
 
-        self['neigen'] = self._eigens.shape[0]
-        self['nrow']=self._eigens.shape[1]
-        self['ncol']=self._eigens.shape[2]
+        if (h['polnaxis'] != POLY_DIM) :
+            print "Expected POLNAXIS==%d, got %d" % (POLY_DIM, h['polnaxis'])
+            self._psfex = None
+            return
 
-        self._hdata=h
+        if (h['psfnaxis'] != MASK_DIM) :
+            print "Expected PSFNAXIS==%d, got %d" % (MASK_DIM, h['psfnaxis'])
+            self._psfex = None
+            return
+
+        if (h['polngrp'] != POLY_NGROUP) :
+            print "Expected POLNGRP==%d, got %d" % (POLY_NGROUP, h['polngrp'])
+            self._psfex = None
+            return
 
         self['poldeg'] = h['poldeg1']
 
-        self['polzero_row'] = h['polzero2']
-        self['polzero_col'] = h['polzero1']
-
-        self['polscale_row'] = h['polscal2']
-        self['polscale_col'] = h['polscal1']
-
-        """
-        self['polzero_row'] = h['polzero1']
-        self['polzero_col'] = h['polzero2']
-
-        self['polscale_row'] = h['polscal1']
-        self['polscale_col'] = h['polscal2']
-        """
+        self['masksize'] = numpy.zeros(MASK_DIM, dtype=LONG_DTYPE)
+        for i in range(MASK_DIM):
+            self['masksize'][i] = h['psfaxis%1d' % (i+1)]
+        
+        self['contextoffset'] = numpy.zeros(POLY_DIM,dtype=DOUBLE_DTYPE)
+        self['contextscale'] = numpy.zeros(POLY_DIM,dtype=DOUBLE_DTYPE)
+        for i in range(POLY_DIM):
+            self['contextoffset'][i] = h['polzero%1d' % (i+1)]
+            self['contextscale'][i] = h['polscal%1d' % (i+1)]
 
         self['psf_samp'] = h['psf_samp']
 
-        self._psfex = _psfex_pywrap.PSFEx(self['neigen'],
-                                          self['nrow'],
-                                          self['ncol'],
-                                          self['poldeg'],
-                                          self['polzero_row'],
-                                          self['polzero_col'],
-                                          self['polscale_row'],
-                                          self['polscale_col'],
-                                          self['psf_samp'],
-                                          self._eigens)
+        self._hdata = h
 
+        self._psfex = _psfex_pywrap.PSFEx(self['masksize'],
+                                          self['poldeg'],
+                                          self['contextoffset'],
+                                          self['contextscale'],
+                                          self['psf_samp'],
+                                          self._psf_mask)
+     
