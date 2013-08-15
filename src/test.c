@@ -22,14 +22,22 @@ int main(int argc, char **argv)
     psfex_write(psfex, stdout);
 
     long row=11, col=8;
-    long neigen=PSFEX_NEIGEN(psfex);
-    for (long eigen=0; eigen<neigen; eigen++) {
-        printf("eigen: %ld\n", eigen);
-        printf("  pix[%ld,%ld]: %lf\n", row, col, PSFEX_GET(psfex,eigen,row,col));
+    long ncomp = PSFEX_NCOMP(psfex);
+    for (long comp=0; comp < ncomp; comp++) {
+	printf("Comp: %ld\n",comp);
+	printf("  pix[%ld,%ld]: %lf\n", row, col, PSFEX_GET(psfex,comp,row,col));
     }
 
-    struct psfex_image *im=psfex_rec_image(psfex,500., 600.);
+    double trow = 500.75;
+    double tcol = 600.3;
+    
+    struct psfex_image *im=psfex_rec_image(psfex,trow, tcol);
     printf("rec[%ld,%ld]: %lf\n", row, col, PSFIM_GET(im, row, col));
+
+    double rowcen,colcen;
+    get_center(PSFEX_NROW(psfex),PSFEX_NCOL(psfex),trow,tcol,psfex->pixstep,&rowcen,&colcen);
+
+    printf("center: row: %lf, col: %lf\n", rowcen, colcen);
 
     if (outname) {
         int clobber=1;
