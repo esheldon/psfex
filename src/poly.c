@@ -56,7 +56,7 @@ void	qerror(char *msg1, char *msg2)
 
 
 /****** poly_init ************************************************************
-PROTO   polystruct *poly_init(int *group, int ndim, int *degree, int ngroup)
+PROTO   polystruct *poly_init(long *group, long ndim, long *degree, long ngroup)
 PURPOSE Allocate and initialize a polynom structure.
 INPUT   1D array containing the group for each parameter,
         number of dimensions (parameters),
@@ -67,25 +67,25 @@ NOTES   -.
 AUTHOR  E. Bertin (IAP)
 VERSION 30/08/2011
  ***/
-polystruct	*poly_init(int *group, int ndim, int *degree, int ngroup)
+polystruct	*poly_init(long *group, long ndim, long *degree, long ngroup)
   {
    void	qerror(char *msg1, char *msg2);
    polystruct	*poly;
    char		str[512];
-   int		nd[POLY_MAXDIM];
-   int		*groupt,
+   long		nd[POLY_MAXDIM];
+   long		*groupt,
 		d,g,n, num,den, dmax;
 
   QCALLOC(poly, polystruct, 1);
   if ((poly->ndim=ndim) > POLY_MAXDIM)
     {
-    sprintf(str, "The dimensionality of the polynom (%d) exceeds the maximum\n"
+    sprintf(str, "The dimensionality of the polynom (%ld) exceeds the maximum\n"
 		"allowed one (%d)", ndim, POLY_MAXDIM);
     qerror("*Error*: ", str);
     }
 
   if (ndim)
-    QMALLOC(poly->group, int, poly->ndim);
+    QMALLOC(poly->group, long, poly->ndim);
     for (groupt=poly->group, d=ndim; d--;)
       *(groupt++) = *(group++)-1;
 
@@ -94,10 +94,10 @@ polystruct	*poly_init(int *group, int ndim, int *degree, int ngroup)
     {
     group = poly->group;	/* Forget the original *group */
 
-    QMALLOC(poly->degree, int, poly->ngroup);
+    QMALLOC(poly->degree, long, poly->ngroup);
 
 /*-- Compute the number of context parameters for each group */
-    memset(nd, 0, ngroup*sizeof(int));
+    memset(nd, 0, ngroup*sizeof(long));
     for (d=0; d<ndim; d++)
       {
       if ((g=group[d])>=ngroup)
@@ -112,7 +112,7 @@ polystruct	*poly_init(int *group, int ndim, int *degree, int ngroup)
     {
     if ((dmax=poly->degree[g]=*(degree++))>POLY_MAXDEGREE)
       {
-      sprintf(str, "The degree of the polynom (%d) exceeds the maximum\n"
+      sprintf(str, "The degree of the polynom (%ld) exceeds the maximum\n"
 		"allowed one (%d)", poly->degree[g], POLY_MAXDEGREE);
       qerror("*Error*: ", str);
       }
@@ -168,8 +168,8 @@ double	poly_func(polystruct *poly, double *pos)
    double	xpol[POLY_MAXDIM+1];
    double      	*post, *xpolt, *basis, *coeff, xval;
    long double	val;
-   int		expo[POLY_MAXDIM+1], gexpo[POLY_MAXDIM+1];
-   int	       	*expot, *degree,*degreet, *group,*groupt, *gexpot,
+   long		expo[POLY_MAXDIM+1], gexpo[POLY_MAXDIM+1];
+   long	       	*expot, *degree,*degreet, *group,*groupt, *gexpot,
 			d,g,t, ndim;
 
 /* Prepare the vectors and counters */

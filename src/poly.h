@@ -43,16 +43,16 @@ typedef struct poly
   {
   double	*basis;		/* Current values of the basis functions */
   double	*coeff;		/* Polynom coefficients */
-  int		ncoeff;		/* Number of coefficients */
-  int		*group;		/* Groups */
-  int		ndim;		/* dimensionality of the polynom */
-  int		*degree;	/* Degree in each group */
-  int		ngroup;		/* Number of different groups */
+  long		ncoeff;		/* Number of coefficients */
+  long		*group;		/* Groups */
+  long		ndim;		/* dimensionality of the polynom */
+  long		*degree;	/* Degree in each group */
+  long		ngroup;		/* Number of different groups */
   }	polystruct;
 
 /*---------------------------------- protos --------------------------------*/
 
-extern polystruct	*poly_init(int *group,int ndim,int *degree,int ngroup);
+extern polystruct	*poly_init(long *group,long ndim,long *degree,long ngroup);
 
 extern double		poly_func(polystruct *poly, double *pos);
 
