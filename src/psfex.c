@@ -11,181 +11,80 @@
 static const double INTERPFAC = 3.0;
 static const double IINTERPFAC = .3333333333333333333333333333;
 
-/*
-static double sinc(double x) {
-    if (x<1e-5 && x>-1e-5)
-        return 1.;
-    return sin(x*M_PI)/(x*M_PI);
-}
-*/
-
-static
-struct psfex_eigens *psfex_eigens_new(long neigen,
-                                      long nrow,   // per eigen
-                                      long ncol)   // per eigen
+struct psfex *psfex_new(long *masksize, // [MASK_DIM]
+			long poldeg,
+			double *contextoffset, // [POLY_DIM]
+			double *contextscale,  // [POLY_DIM]
+			double psf_samp)
 {
-    struct psfex_eigens *self=calloc(1, sizeof(struct psfex_eigens));
-    if (!self) {
-        fprintf(stderr,"failed to allocate struct psfex_eigens\n");
-        exit(1);
+    struct psfex *self;
+    int i;
+    long deg[POLY_MAXDIM], group[POLY_MAXDIM];
+
+    if ((self = calloc(1, sizeof(struct psfex))) == NULL) {
+	fprintf(stderr,"Failed to allocate struct psfex\n");
+	exit(1);
     }
+    self->maskcomp = NULL;
+    
+    // copy masksize
+    memcpy(self->masksize, masksize, MASK_DIM * sizeof(long));
 
-    self->neigen=neigen;
+    // copy contextoffset
+    memcpy(self->contextoffset, contextoffset, POLY_DIM * sizeof(double));
 
-    self->mosaic_size = neigen*nrow*ncol;
-    self->mosaic_nrow = neigen*nrow;
-    self->mosaic_ncol = ncol;
+    // copy contextscale
+    memcpy(self->contextscale, contextscale, POLY_DIM * sizeof(double));
 
-    self->eigen_size = nrow*ncol;
-    self->eigen_nrow=nrow;
-    self->eigen_ncol=ncol;
+    self->masknpix = self->masksize[0] * self->masksize[1];
 
-    self->rows = calloc(self->mosaic_nrow,sizeof(double *));
-    if (!self->rows) {
-        fprintf(stderr,"could not allocate %ld image rows\n",
-                self->mosaic_nrow);
-        exit(1);
+    // set up poly struct
+    for (i=0;i<POLY_DIM;i++) {
+	group[i] = 1;
     }
-
-    self->rows[0]=calloc(self->mosaic_size,sizeof(double));
-
-    for(long i = 1; i < self->mosaic_nrow; i++) {
-        self->rows[i] = self->rows[i-1] + self->eigen_ncol;
-    }
-
-    return self;
-}
-
-static
-struct psfex_eigens *psfex_eigens_free(struct psfex_eigens *self)
-{
-    if (self) {
-        if (self->rows) {
-            if (self->rows[0]) {
-                free(self->rows[0]);
-            }
-            self->rows[0]=NULL;
-
-            free(self->rows);
-            self->rows=NULL;
-        }
-        free(self);
-        self=NULL;
-    }
-    return self;
-}
-
-struct psfex *psfex_new(long neigen,
-                        long nrow,   // per eigen
-                        long ncol,   // per eigen
-                        long poldeg,
-                        double polzero_row,
-                        double polzero_col,
-                        double polscale_row,
-                        double polscale_col,
-                        double psf_samp)
-{
-    int ndim, ngroup, deg[POLY_MAXDIM], group[POLY_MAXDIM];
-    int psfnaxis;
-
-    struct psfex *self=calloc(1, sizeof(struct psfex));
-    if (!self) {
-        fprintf(stderr,"failed to allocate struct psfex\n");
-        exit(1);
-    }
-
-    self->poldeg=poldeg;
-    self->polzero_row=polzero_row;
-    self->polzero_col=polzero_col;
-    self->polscale_row=polscale_row;
-    self->polscale_col=polscale_col;
-    self->psf_samp=psf_samp;
-
-    self->eigens=psfex_eigens_new(neigen, nrow, ncol);
-    if (!psfex_check(self)) {
-        self=psfex_free(self);
-        return self;
-    }
-
-    // maximum radius in the sample space (x/psf_samp)
-    self->maxrad = (ncol-1)/2. - INTERPFAC;
-
-    // and the sextractor stuff...
-    ndim = 2;  // this is fixed
-    ngroup = 1; // fixed
-    group[0] = 1; // fixed
-    group[1] = 1;
-    psfnaxis = 3; // fixed
-
-    self->contextoffset[0] = polzero_col;
-    self->contextoffset[1] = polzero_row;
-    self->contextscale[0] = polscale_col;
-    self->contextscale[1] = polscale_row;
-    self->masksize[0] = ncol;
-    self->masksize[1] = nrow;
-    self->masksize[2] = neigen;
-
-    self->maskdim = psfnaxis;
 
     deg[0] = poldeg;
-    self->poly = poly_init(group,ndim,deg,ngroup);
+    self->poly = poly_init(group, POLY_DIM, deg, POLY_NGROUP);
 
-    self->pixstep = 1./(float) psf_samp;
+    self->pixstep = 1./psf_samp;
 
-    // read in eigens later...but allocate memory now.
-    if ((self->maskcomp = (float *) calloc(neigen*nrow*ncol,sizeof(float))) == NULL) {
-        self=psfex_free(self);
-        fprintf(stderr,"failed to allocate maskcomp\n");
-        exit(1);
-    }
+    // allocate memory for mask and image...
 
-    if ((self->maskloc = (float *) calloc(nrow*ncol,sizeof(float))) == NULL) {
-        self=psfex_free(self);
-        fprintf(stderr,"failed to allocate maskloc\n");
-        exit(1);
+    if ((self->maskcomp = (double *) calloc(self->masknpix * self->masksize[2], sizeof(double))) == NULL) {
+	self=psfex_free(self);
+	fprintf(stderr,"Failed to allocate maskcomp\n");
+	exit(1);
     }
 
     return self;
 }
+			
 
 struct psfex *psfex_free(struct psfex *self)
 {
     if (self) {
-        if (self->eigens) {
-            self->eigens=psfex_eigens_free(self->eigens);
-        }
-        poly_end(self->poly);
-        free(self->maskcomp);
-        free(self->maskloc);
-        free(self);
-        self=NULL;
+	if (self->maskcomp) {
+	    free(self->maskcomp);
+	    self->maskcomp = NULL;
+	}
+	
+	poly_end(self->poly);
+	free(self);
     }
     return self;
 }
 
-int psfex_check(const struct psfex *self)
-{
-    long neigen_exp = ((self->poldeg+1)*(self->poldeg+2))/2;
-    if (self->eigens->neigen != neigen_exp) {
-        fprintf(stderr,"poldeg and neigen disagree\n");
-        return 0;
-    }
-
-    return 1;
-}
 
 void psfex_write(const struct psfex *self, FILE* stream)
 {
-    fprintf(stream,"poldeg:       %ld\n", self->poldeg);
-    fprintf(stream,"polzero_row:  %lf\n", self->polzero_row);
-    fprintf(stream,"polzero_col:  %lf\n", self->polzero_col);
-    fprintf(stream,"polscale_row: %lf\n", self->polscale_row);
-    fprintf(stream,"polscale_col: %lf\n", self->polscale_col);
-    fprintf(stream,"psf_samp:     %lf\n", self->psf_samp);
-    fprintf(stream,"maxrad:       %lf\n", self->maxrad);
-    fprintf(stream,"neigen:       %ld\n", self->eigens->neigen);
-    fprintf(stream,"nrow:         %ld\n", self->eigens->eigen_nrow);
-    fprintf(stream,"ncol:         %ld\n", self->eigens->eigen_ncol);
+    fprintf(stream,"masksize[0]:       %ld\n", self->masksize[0]);
+    fprintf(stream,"masksize[1]:       %ld\n", self->masksize[1]);
+    fprintf(stream,"masksize[2]:       %ld\n", self->masksize[2]);
+    fprintf(stream,"contextoffset[0]:  %lf\n", self->contextoffset[0]);
+    fprintf(stream,"contextoffset[1]:  %lf\n", self->contextoffset[1]);
+    fprintf(stream,"contextscale[0]:   %lf\n", self->contextscale[0]);
+    fprintf(stream,"contextscale[1]:   %lf\n", self->contextscale[1]);
+    fprintf(stream,"pixstep:           %lf\n", self->pixstep);
 }
 
 struct psfex_image *psfex_image_new(long nrow, long ncol)
@@ -249,128 +148,52 @@ struct psfex_image *psfex_image_free(struct psfex_image *self)
 }
 
 
-
-/*
-
-   Add up the contributions for each eigen image
-
-   The row_scaled and col_scaled are the central row and col in the
-   translated and scaled coordinates for the polynomial, (row-zero_row)/scale
-
-   The erow, ecol are the pixel coords for the eigen images
-*/
-/*
-static
-double get_summed_eigen_pixel(const struct psfex *self,
-                              double row_scaled, double col_scaled, 
-                              long erow, long ecol)
+void get_center(long nrow, long ncol,
+		double row, double col,
+		double pixstep,
+		double *rowcen, double *colcen)
 {
-    // always start with value in the zeroth eigenimage
-    double res=PSFEX_GET(self, 0, erow, ecol);
+    double drow, dcol;
 
-    for (long p=1; p<=self->poldeg; p++) {
-        for (long prow=0; prow<=p; prow++) {
-            long pcol = p-prow;
-            long k = pcol+prow*(self->poldeg+1)-(prow*(prow-1))/2;
-            double eigval = PSFEX_GET(self, k, erow, ecol);
-            res += pow(col_scaled,pcol) * pow(row_scaled,prow)* eigval;
-        }
-    }
-    return res;
+    dcol = (col - (int)(col+0.49999))/pixstep;
+    drow = (row - (int)(row+0.49999))/pixstep;
+
+    *colcen = (double) (ncol/2) + dcol;
+    *rowcen = (double) (nrow/2) + drow;
+
 }
-*/
+		
+
+/* repurposed from sextractor image.c */
 /*
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*
+*	This file part of:	SExtractor
+*
+*	Copyright:		(C) 1993-2010 Emmanuel Bertin -- IAP/CNRS/UPMC
+*
+*	License:		GNU General Public License
+*
+*	SExtractor is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*	SExtractor is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*	You should have received a copy of the GNU General Public License
+*	along with SExtractor. If not, see <http://www.gnu.org/licenses/>.
+*
+*	Last modified:		19/10/2010
+*
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-   Get the pixel value.  The central row and col are in the translated and
-   scaled coordinates for the polynomial, (row-zero_row)/scale
-
-   The drow_samp,dcol_samp are relative to the *unscaled* centroid but are
-   corrected for the sampling, e.g. (rowpsf-row)/psf_samp
-
-   We then interpolate the pixels from a neighborhood radius defined (in the
-   sample scale corrected coords) INTERPFAC
-
-   you should check against maxrad before calling this function
-*/
-/*
-static
-double get_pixel_value_samp(const struct psfex *self,
-                            double row_scaled, double col_scaled,
-                            double drow_samp, double dcol_samp)
+static int _psfex_vignet_resample(double *pix1, int w1, int h1,
+                                  double *pix2, int w2, int h2,
+                                  double dx, double dy, double step2)
 {
-    double pixval=0;
-
-    long nrow=PSFEX_NROW(self);
-    long ncol=PSFEX_NCOL(self);
-
-    // interpolate values from the eigen images
-    // we limit to the region defined by INTERPFAC
-    // erow,ecol is for row in the eigen image set
-    for(long erow=0; erow<nrow; erow++) {
-        double derow = fabs(erow - 0.5*nrow - drow_samp);
-        if (derow > INTERPFAC)
-            continue;
-
-        double derowdiv = derow*IINTERPFAC;
-
-        for(long ecol=0; ecol<ncol; ecol++) {
-            double decol = fabs(ecol - 0.5*ncol - dcol_samp);
-            if (decol > INTERPFAC)
-                continue;
-
-            double decoldiv = decol*IINTERPFAC;
-
-            double interpolant = 
-                sinc(derow)*sinc(derowdiv)*sinc(decol)*sinc(decoldiv);
-
-            double value = get_summed_eigen_pixel(self, 
-                                                  row_scaled, col_scaled,
-                                                  erow, ecol);
-            pixval+= value*interpolant;
-        }
-    }
-
-    return pixval;
-}
-*/
-
- /*
-static void get_center(long nrow, long ncol,
-                       double row, double col,
-                       double *rowcen, double *colcen)
-{
-  double dcol,drow;
-
-  dcol = col - (int)(col + 0.49999);
-  drow = row - (int)(row + 0.49999);
-
-  *colcen = dcol - (float)(ncol/2);
-  *rowcen = drow - (float)(nrow/2);
-
-  fprintf(stdout,"dcol = %.8f drow = %.8f\n",dcol,drow);
-  fprintf(stdout,"colcen = %.8f rowcen = %.8f\n",*colcen,*rowcen);
-  
-  
-  long rowcen_int=(nrow-1)/2;
-    long colcen_int=(ncol-1)/2;
-
-    double row_remain=row-floor(row);
-    double col_remain=col-floor(col);
-
-    (*rowcen) = (double)rowcen_int + row_remain;// + 0.5;
-    (*colcen) = (double)colcen_int + col_remain;// + 0.5;
-
-    fprintf(stdout,"colcen = %.8f rowcen = %.8f\n",*colcen,*rowcen);
-}
-*/
-
-/* from sextractor image.c */
-
-static int _psfex_vignet_resample(float *pix1, int w1, int h1,
-                                  float *pix2, int w2, int h2,
-                                  float dx, float dy, float step2)
-{
-    float	*mask,*maskt, xc1,xc2,yc1,yc2, xs1,ys1, x1,y1, x,y, dxm,dym,
+    double	*mask,*maskt, xc1,xc2,yc1,yc2, xs1,ys1, x1,y1, x,y, dxm,dym,
             val, norm,
             *pix12, *pixin,*pixin0, *pixout,*pixout0;
     int		i,j,k,n,t, *start,*startt, *nmask,*nmaskt,
@@ -379,10 +202,10 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
 
 
     /* Initialize destination buffer to zero */
-    memset(pix2, 0, w2*h2*sizeof(float));
+    memset(pix2, 0, w2*h2*sizeof(double));
 
-    xc1 = (float)(w1/2);	/* Im1 center x-coord*/
-    xc2 = (float)(w2/2);	/* Im2 center x-coord*/
+    xc1 = (double)(w1/2);	/* Im1 center x-coord*/
+    xc2 = (double)(w2/2);	/* Im2 center x-coord*/
     xs1 = xc1 + dx - xc2*step2;	/* Im1 start x-coord */
 
     if ((int)xs1 >= w1)
@@ -402,8 +225,8 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
         nx2 = ix2;
     if (nx2<=0)
         return -1;
-    yc1 = (float)(h1/2);	/* Im1 center y-coord */
-    yc2 = (float)(h2/2);	/* Im2 center y-coord */
+    yc1 = (double)(h1/2);	/* Im1 center y-coord */
+    yc2 = (double)(h2/2);	/* Im2 center y-coord */
     ys1 = yc1 + dy - yc2*step2;	/* Im1 start y-coord */
     if ((int)ys1 >= h1)
         return -1;
@@ -433,10 +256,10 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
         ny1 = h1;
     /* Express everything relative to the effective Im1 start (with margin) */
     ny1 -= iys1a;
-    ys1 -= (float)iys1a;
+    ys1 -= (double)iys1a;
 
     /* Allocate interpolant stuff for the x direction */
-    if ((mask = (float *) malloc(sizeof(float) * nx2 * INTERPW)) == NULL) /* Interpolation masks */
+    if ((mask = (double *) malloc(sizeof(double) * nx2 * INTERPW)) == NULL) /* Interpolation masks */
         return -1;
     if ((nmask = (int *) malloc(sizeof(int) * nx2)) == NULL) /* Interpolation mask sizes */
         return -1;
@@ -456,7 +279,7 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
         if (ix < 0)
         {
             n = INTERPW+ix;
-            dxm -= (float)ix;
+            dxm -= (double)ix;
             ix = 0;
         }
         else
@@ -474,7 +297,7 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
             *(maskt++) *= norm;
     }
 
-    if ((pix12 = (float *) calloc(nx2*ny1, sizeof(float))) == NULL) { /* Intermediary frame-buffer */
+    if ((pix12 = (double *) calloc(nx2*ny1, sizeof(double))) == NULL) { /* Intermediary frame-buffer */
         return -1;
     }
 
@@ -498,7 +321,7 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
     }
 
     /* Reallocate interpolant stuff for the y direction */
-    if ((mask = (float *) realloc(mask, sizeof(float) * ny2 * INTERPW)) == NULL) { /* Interpolation masks */
+    if ((mask = (double *) realloc(mask, sizeof(double) * ny2 * INTERPW)) == NULL) { /* Interpolation masks */
         return -1;
     }
     if ((nmask = (int *) realloc(nmask, sizeof(int) * ny2)) == NULL) { /* Interpolation mask sizes */
@@ -521,7 +344,7 @@ static int _psfex_vignet_resample(float *pix1, int w1, int h1,
         if (iy < 0)
         {
             n = INTERPW+iy;
-            dym -= (float)iy;
+            dym -= (double)iy;
             iy = 0;
         }
         else
@@ -572,64 +395,65 @@ void _psfex_rec_fill(const struct psfex *self,
                      double col,
                      double *data)
 {
+    double pos[POLY_DIM];
+    double *basis=NULL, fac;
+    double *ppc=NULL, *pl=NULL;
+    int i,n,p;
+    double *maskloc=NULL;
+    double dcol,drow;
+    double sum;
 
-  static double pos[POLY_MAXDIM];
-  double *basis=NULL, fac;
-  float *ppc=NULL, *pl=NULL;
-  int   i,n,p,ndim,npix;
-  float *resampled=NULL;
-  //double rowpsf_cen=0, colpsf_cen=0;
-  double dcol,drow;
-  //int ii,jj;
 
-  npix = self->masksize[0]*self->masksize[1];
+    if ((maskloc = (double *) calloc(self->masknpix, sizeof(double))) == NULL) {
+	fprintf(stderr,"Could not allocate maskloc\n");
+	exit(1);
+    }
 
-  memset(self->maskloc, 0, npix*sizeof(float));
+    pos[0] = col;
+    pos[1] = row;
+    for (i=0;i<POLY_DIM;i++) {
+	pos[i] = (pos[i] - self->contextoffset[i])/self->contextscale[i];
+    }
 
-  ndim = self->poly->ndim;
-  pos[0] = col;
-  pos[1] = row;
-  for (i=0;i<ndim;i++) {
-      pos[i] = (pos[i] - self->contextoffset[i]) / self->contextscale[i];
-  }
+    poly_func(self->poly, pos);
 
-  poly_func(self->poly, pos);
+    basis = self->poly->basis;
+    ppc = self->maskcomp;
 
-  basis = self->poly->basis;
-  ppc = self->maskcomp;
+    for (n=PSFEX_NCOMP(self); n--; ) {
+	pl = maskloc;
+	fac = *(basis++);
+	for (p=PSFEX_SIZE(self); p--;)
+	    *(pl++) += fac**(ppc++);
+    }
 
-  for (n = (self->maskdim>2?self->masksize[2]:1); n--; ) {
-      pl = self->maskloc;
-      fac = (float)*(basis++);
-      for (p=npix; p--;)
-          *(pl++) += fac**(ppc++);
-  }
+    dcol = col - (int)(col+0.49999);
+    drow = row - (int)(row+0.49999);
 
-  // resample
-  if ((resampled = (float *) calloc(npix,sizeof(float))) == NULL) {
-        fprintf(stderr,"failed to allocate resampled\n");
-        exit(1);
-  }
-
-  dcol = col - (int)(col+0.49999);
-  drow = row - (int)(row+0.49999);
+    sum=0.0;
+    for (i=0;i<PSFEX_SIZE(self);i++) {
+	sum+=maskloc[i];
+    }
   
-  _psfex_vignet_resample(self->maskloc,
-                         self->masksize[0],
-                         self->masksize[1],
-                         resampled,
-                         self->masksize[0],
-                         self->masksize[1],
-                         -(float)dcol*self->pixstep,
-                         -(float)drow*self->pixstep,
-                         self->pixstep);
+    _psfex_vignet_resample(maskloc,
+			   self->masksize[0],
+			   self->masksize[1],
+			   data,
+			   self->masksize[0],
+			   self->masksize[1],
+			   -dcol*self->pixstep,
+			   -drow*self->pixstep,
+			   self->pixstep);
 
-  for (i=0;i<npix;i++) {
-      data[i] = (double) resampled[i];
-  }
+    sum=0.0;
+    for (i=0;i<PSFEX_SIZE(self);i++) {
+	sum+=data[i];
+    }
 
-  free(resampled);
-
+    // NOTE: this is not normalized to match SExtractor at the moment...
+    // This will be updated when SExtractor is updated...
+ 
+    free(maskloc);
 }
 
 
