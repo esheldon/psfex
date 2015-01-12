@@ -71,20 +71,14 @@ class PSFEx(dict):
         # make a copy, will be native byte order
         self._psf_mask=psf_mask
 
-        if (h['polnaxis'] != POLY_DIM) :
-            print "Expected POLNAXIS==%d, got %d" % (POLY_DIM, h['polnaxis'])
-            self._psfex = None
-            return
+        if h['polnaxis'] != POLY_DIM:
+            raise ValueError("Expected POLNAXIS==%d, got %d" % (POLY_DIM, h['polnaxis']))
 
-        if (h['psfnaxis'] != MASK_DIM) :
-            print "Expected PSFNAXIS==%d, got %d" % (MASK_DIM, h['psfnaxis'])
-            self._psfex = None
-            return
+        if h['psfnaxis'] != MASK_DIM:
+            raise ValueError("Expected PSFNAXIS==%d, got %d" % (MASK_DIM, h['psfnaxis']))
 
-        if (h['polngrp'] != POLY_NGROUP) :
-            print "Expected POLNGRP==%d, got %d" % (POLY_NGROUP, h['polngrp'])
-            self._psfex = None
-            return
+        if h['polngrp'] != POLY_NGROUP:
+            raise ValueError("Expected POLNGRP==%d, got %d" % (POLY_NGROUP, h['polngrp']))
 
         self['poldeg'] = h['poldeg1']
 
