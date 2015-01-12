@@ -27,17 +27,6 @@ class PSFEx(dict):
         input location
         """
         return self._psfex.center(row, col)
-        
-        #from math import floor
-        #rowcen_int=(self['nrow']-1)//2
-        #colcen_int=(self['ncol']-1)//2
-
-        #row_remain=row-floor(row)
-        #col_remain=col-floor(col)
-
-        #rowcen = float(rowcen_int) + row_remain
-        #colcen = float(colcen_int) + col_remain
-        #return rowcen, colcen
 
     def get_fwhm(self):
         """
@@ -68,7 +57,6 @@ class PSFEx(dict):
 
             h=fits['psf_data'].read_header()
 
-        # make a copy, will be native byte order
         self._psf_mask=psf_mask
 
         if h['polnaxis'] != POLY_DIM:
