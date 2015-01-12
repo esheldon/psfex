@@ -22,11 +22,11 @@ struct psfex *psfex_new(long *masksize, // [MASK_DIM]
     long deg[POLY_MAXDIM], group[POLY_MAXDIM];
 
     if ((self = calloc(1, sizeof(struct psfex))) == NULL) {
-	fprintf(stderr,"Failed to allocate struct psfex\n");
-	exit(1);
+        fprintf(stderr,"Failed to allocate struct psfex\n");
+        exit(1);
     }
     self->maskcomp = NULL;
-    
+
     // copy masksize
     memcpy(self->masksize, masksize, MASK_DIM * sizeof(long));
 
@@ -40,7 +40,7 @@ struct psfex *psfex_new(long *masksize, // [MASK_DIM]
 
     // set up poly struct
     for (i=0;i<POLY_DIM;i++) {
-	group[i] = 1;
+        group[i] = 1;
     }
 
     deg[0] = poldeg;
@@ -51,9 +51,9 @@ struct psfex *psfex_new(long *masksize, // [MASK_DIM]
     // allocate memory for mask and image...
 
     if ((self->maskcomp = (double *) calloc(self->masknpix * self->masksize[2], sizeof(double))) == NULL) {
-	self=psfex_free(self);
-	fprintf(stderr,"Failed to allocate maskcomp\n");
-	exit(1);
+        self=psfex_free(self);
+        fprintf(stderr,"Failed to allocate maskcomp\n");
+        exit(1);
     }
 
     return self;
@@ -63,13 +63,13 @@ struct psfex *psfex_new(long *masksize, // [MASK_DIM]
 struct psfex *psfex_free(struct psfex *self)
 {
     if (self) {
-	if (self->maskcomp) {
-	    free(self->maskcomp);
-	    self->maskcomp = NULL;
-	}
-	
-	poly_end(self->poly);
-	free(self);
+        if (self->maskcomp) {
+            free(self->maskcomp);
+            self->maskcomp = NULL;
+        }
+
+        poly_end(self->poly);
+        free(self);
     }
     return self;
 }
@@ -98,7 +98,7 @@ struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data)
         fprintf(stderr,"Could not allocate struct psfex_image\n");
         exit(1);
     }
-    
+
     self->size=nrow*ncol;
     self->nrow=nrow;
     self->ncol=ncol;
@@ -405,14 +405,14 @@ void _psfex_rec_fill(const struct psfex *self,
 
 
     if ((maskloc = (double *) calloc(self->masknpix, sizeof(double))) == NULL) {
-	fprintf(stderr,"Could not allocate maskloc\n");
-	exit(1);
+        fprintf(stderr,"Could not allocate maskloc\n");
+        exit(1);
     }
 
     pos[0] = col;
     pos[1] = row;
     for (i=0;i<POLY_DIM;i++) {
-	pos[i] = (pos[i] - self->contextoffset[i])/self->contextscale[i];
+        pos[i] = (pos[i] - self->contextoffset[i])/self->contextscale[i];
     }
 
     poly_func(self->poly, pos);
@@ -421,10 +421,10 @@ void _psfex_rec_fill(const struct psfex *self,
     ppc = self->maskcomp;
 
     for (n=PSFEX_NCOMP(self); n--; ) {
-	pl = maskloc;
-	fac = *(basis++);
-	for (p=PSFEX_SIZE(self); p--;)
-	    *(pl++) += fac**(ppc++);
+        pl = maskloc;
+        fac = *(basis++);
+        for (p=PSFEX_SIZE(self); p--;)
+            *(pl++) += fac**(ppc++);
     }
 
     dcol = col - (int)(col+0.49999);
@@ -432,27 +432,27 @@ void _psfex_rec_fill(const struct psfex *self,
 
     sum=0.0;
     for (i=0;i<PSFEX_SIZE(self);i++) {
-	sum+=maskloc[i];
+        sum+=maskloc[i];
     }
-  
+
     _psfex_vignet_resample(maskloc,
-			   self->masksize[0],
-			   self->masksize[1],
-			   data,
-			   self->masksize[0],
-			   self->masksize[1],
-			   -dcol*self->pixstep,
-			   -drow*self->pixstep,
-			   self->pixstep);
+                           self->masksize[0],
+                           self->masksize[1],
+                           data,
+                           self->masksize[0],
+                           self->masksize[1],
+                           -dcol*self->pixstep,
+                           -drow*self->pixstep,
+                           self->pixstep);
 
     sum=0.0;
     for (i=0;i<PSFEX_SIZE(self);i++) {
-	sum+=data[i];
+        sum+=data[i];
     }
 
     // NOTE: this is not normalized to match SExtractor at the moment...
     // This will be updated when SExtractor is updated...
- 
+
     free(maskloc);
 }
 
