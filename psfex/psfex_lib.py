@@ -8,6 +8,16 @@ POLY_DIM = 2
 MASK_DIM = 3
 POLY_NGROUP = 1
 
+class PSFExError(Exception):
+    """
+    Something fundamentally wrong with the PSFEx file
+    """
+    def __init__(self, value):
+         self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+
 class PSFEx(dict):
     def __init__(self, filename):
         self._load(filename)
@@ -60,13 +70,13 @@ class PSFEx(dict):
         self._psf_mask=psf_mask
 
         if h['polnaxis'] != POLY_DIM:
-            raise ValueError("Expected POLNAXIS==%d, got %d" % (POLY_DIM, h['polnaxis']))
+            raise PSFExError("Expected POLNAXIS==%d, got %d" % (POLY_DIM, h['polnaxis']))
 
         if h['psfnaxis'] != MASK_DIM:
-            raise ValueError("Expected PSFNAXIS==%d, got %d" % (MASK_DIM, h['psfnaxis']))
+            raise PSFExError("Expected PSFNAXIS==%d, got %d" % (MASK_DIM, h['psfnaxis']))
 
         if h['polngrp'] != POLY_NGROUP:
-            raise ValueError("Expected POLNGRP==%d, got %d" % (POLY_NGROUP, h['polngrp']))
+            raise PSFExError("Expected POLNGRP==%d, got %d" % (POLY_NGROUP, h['polngrp']))
 
         self['poldeg'] = h['poldeg1']
 
