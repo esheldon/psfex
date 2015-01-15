@@ -6,8 +6,10 @@ ext=Extension("psfex._psfex_pywrap",
               ["psfex/psfex_pywrap.c","psfex/psfex.c","psfex/poly.c"],
               extra_compile_args = ['-std=gnu99'])
 
+exec(open('psfex/version.py').read())
+
 setup(name="psfex", 
-      version="0.1.0",
+      version=__version__,
       description="Python and C libraries for reconstruct PSFEx psfs",
       license = "GPL",
       author="Erin Scott Sheldon",
