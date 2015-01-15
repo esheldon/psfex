@@ -35,10 +35,11 @@ int main(int argc, char **argv)
     printf("rec[%ld,%ld]: %lf\n", row, col, PSFIM_GET(im, row, col));
 
     double rowcen,colcen;
-    get_center(PSFEX_NROW(psfex),PSFEX_NCOL(psfex),trow,tcol,psfex->pixstep,&rowcen,&colcen);
+    get_center(RECON_NROW(psfex),RECON_NCOL(psfex),trow,tcol,psfex->pixstep,&rowcen,&colcen);
+
 
     printf("center: row: %lf, col: %lf\n", rowcen, colcen);
-
+ 
     if (outname) {
         int clobber=1;
         int status=0;
