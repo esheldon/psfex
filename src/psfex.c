@@ -48,13 +48,20 @@ struct psfex *psfex_new(long *masksize, // [MASK_DIM]
 
     self->pixstep = 1./psf_samp;
 
-    // allocate memory for mask and image...
+    // allocate memory for mask ...
 
     if ((self->maskcomp = (double *) calloc(self->masknpix * self->masksize[2], sizeof(double))) == NULL) {
         self=psfex_free(self);
         fprintf(stderr,"Failed to allocate maskcomp\n");
         exit(1);
     }
+
+    // and set the reconstruction size, using psf sampling factor.  Make sure it's odd
+    self->reconsize[0] = (long) ceil((float) self->masksize[0] * (float) psf_samp);
+    if ((self->reconsize[0] % 2) == 0) { self->reconsize[0]++; }
+    self->reconsize[1] = (long) ceil((float) self->masksize[1] * (float) psf_samp);
+    if ((self->reconsize[1] % 2) == 0) { self->reconsize[1]++; } 
+    
 
     return self;
 }
@@ -80,6 +87,8 @@ void psfex_write(const struct psfex *self, FILE* stream)
     fprintf(stream,"masksize[0]:       %ld\n", self->masksize[0]);
     fprintf(stream,"masksize[1]:       %ld\n", self->masksize[1]);
     fprintf(stream,"masksize[2]:       %ld\n", self->masksize[2]);
+    fprintf(stream,"reconsize[0]:      %ld\n", self->reconsize[0]);
+    fprintf(stream,"reconsize[1]:      %ld\n", self->reconsize[1]);
     fprintf(stream,"contextoffset[0]:  %lf\n", self->contextoffset[0]);
     fprintf(stream,"contextoffset[1]:  %lf\n", self->contextoffset[1]);
     fprintf(stream,"contextscale[0]:   %lf\n", self->contextscale[0]);
@@ -401,7 +410,7 @@ void _psfex_rec_fill(const struct psfex *self,
     int i,n,p;
     double *maskloc=NULL;
     double dcol,drow;
-    double sum;
+    //double sum;
 
 
     if ((maskloc = (double *) calloc(self->masknpix, sizeof(double))) == NULL) {
@@ -430,32 +439,36 @@ void _psfex_rec_fill(const struct psfex *self,
     dcol = col - (int)(col+0.49999);
     drow = row - (int)(row+0.49999);
 
+    // this is incorrect, and not used.
+    /*
     sum=0.0;
     for (i=0;i<PSFEX_SIZE(self);i++) {
         sum+=maskloc[i];
     }
-
+    */
+    
     _psfex_vignet_resample(maskloc,
                            self->masksize[0],
                            self->masksize[1],
                            data,
-                           self->masksize[0],
-                           self->masksize[1],
+                           self->reconsize[0],
+                           self->reconsize[1],
                            -dcol*self->pixstep,
                            -drow*self->pixstep,
                            self->pixstep);
-
+    
+    // this is incorrect, and not used.
+    /*
     sum=0.0;
     for (i=0;i<PSFEX_SIZE(self);i++) {
         sum+=data[i];
     }
-
+    */
     // NOTE: this is not normalized to match SExtractor at the moment...
-    // This will be updated when SExtractor is updated...
+    // This will be updated when/if SExtractor is updated...
 
     free(maskloc);
 }
-
 
 
 double *psfex_recp(const struct psfex *self,
@@ -465,8 +478,9 @@ double *psfex_recp(const struct psfex *self,
                    long *ncol)
 {
 
-    (*nrow) = PSFEX_NROW(self);
-    (*ncol) = PSFEX_NCOL(self);
+    // this is the size of the reconstructed image
+    (*nrow) = RECON_NROW(self);
+    (*ncol) = RECON_NCOL(self);
     long npix=(*nrow)*(*ncol);
     double *data=calloc(npix, sizeof(double));
     if (!data) {

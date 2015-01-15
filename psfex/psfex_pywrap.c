@@ -86,8 +86,10 @@ static PyObject *make_psf_image(const struct psfex *self)
     PyObject *image=NULL;
     int ndims=2;
     npy_intp dims[2];
-    dims[0] = PSFEX_NROW(self);
-    dims[1] = PSFEX_NCOL(self);
+    //dims[0] = PSFEX_NROW(self);
+    //dims[1] = PSFEX_NCOL(self);
+    dims[0] = RECON_NROW(self);
+    dims[1] = RECON_NCOL(self);
     image = PyArray_ZEROS(ndims, dims, NPY_FLOAT64, 0);
     return image;
 }
@@ -122,7 +124,7 @@ PyObject *PyPSFExObject_center(struct PyPSFExObject *self, PyObject *args)
 	return NULL;
     }
 
-    get_center(PSFEX_NROW(self->psfex), PSFEX_NCOL(self->psfex),
+    get_center(RECON_NROW(self->psfex), RECON_NCOL(self->psfex),
 	       row, col,
 	       self->psfex->pixstep,
 	       &rowcen, &colcen);
