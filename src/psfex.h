@@ -5,6 +5,7 @@
 #define POLY_DIM    2
 #define MASK_DIM    3
 #define POLY_NGROUP 1
+#define RECON_DIM   2
 
 #define MAX_STR     100
 
@@ -18,6 +19,7 @@ struct psfex {
     double       contextscale[POLY_DIM];      /* Scale to apply to context data */
     struct poly *poly;                 /* Polynomial structure */
     double       pixstep;              /* PSF Sampling step */
+    long         reconsize[RECON_DIM];         /* size of reconstructed image (after sampling) */
 };
 
 #define PSFEX_NCOMP(im) ((im)->masksize[2])
@@ -25,6 +27,8 @@ struct psfex {
 #define PSFEX_SIZE(im) ((im)->masknpix)
 #define PSFEX_NROW(im) ((im)->masksize[1])
 #define PSFEX_NCOL(im) ((im)->masksize[0])
+#define RECON_NROW(im) ((im)->reconsize[0])
+#define RECON_NCOL(im) ((im)->reconsize[1])
 
 #define PSFEX_GET(im, comp, row, col)               \
     ( (im)->maskcomp[comp*PSFEX_NROW(im)*PSFEX_NCOL(im) + row*PSFEX_NCOL(im) + col])
