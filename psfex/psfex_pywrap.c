@@ -124,7 +124,7 @@ PyObject *PyPSFExObject_center(struct PyPSFExObject *self, PyObject *args)
 	return NULL;
     }
 
-    get_center(PSFEX_NROW(self->psfex), PSFEX_NCOL(self->psfex),
+    get_center(RECON_NROW(self->psfex), RECON_NCOL(self->psfex),
 	       row, col,
 	       self->psfex->pixstep,
 	       &rowcen, &colcen);
