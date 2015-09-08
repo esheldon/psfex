@@ -8,8 +8,8 @@
 #include "psfex.h"
 #include "poly.h"
 
-static const double INTERPFAC = 3.0;
-static const double IINTERPFAC = .3333333333333333333333333333;
+static const double INTERPFAC = 4.0;
+static const double IINTERPFAC = 0.25;
 
 struct psfex *psfex_new(long *masksize, // [MASK_DIM]
 			long poldeg,
@@ -164,8 +164,11 @@ void get_center(long nrow, long ncol,
 {
     double drow, dcol;
 
-    dcol = (col - (int)(col+0.49999))/pixstep;
-    drow = (row - (int)(row+0.49999))/pixstep;
+    // this follows the new calculation in _psfex_rec_fill, in turn
+    //   following SExtractor
+    
+    dcol = col - 1 - (long) col;
+    drow = row - 1 - (long) row;
 
     *colcen = (double) (ncol/2) + dcol;
     *rowcen = (double) (nrow/2) + drow;
@@ -436,16 +439,15 @@ void _psfex_rec_fill(const struct psfex *self,
             *(pl++) += fac**(ppc++);
     }
 
-    dcol = col - (int)(col+0.49999);
-    drow = row - (int)(row+0.49999);
+    // following sextractor where deltax = mx - ix
+    //                            mx is the center
+    //                            ix is the integer (floor) center of the stamp
+    //                            and there's an extra -1 because YOLO
+    // (the -1 only shifts the cutout in the postage stamp; get_center()
+    //   tells you where the center actually is)
 
-    // this is incorrect, and not used.
-    /*
-    sum=0.0;
-    for (i=0;i<PSFEX_SIZE(self);i++) {
-        sum+=maskloc[i];
-    }
-    */
+    dcol = col - 1 - (long) col;
+    drow = row - 1 - (long) row;
     
     _psfex_vignet_resample(maskloc,
                            self->masksize[0],
@@ -457,14 +459,7 @@ void _psfex_rec_fill(const struct psfex *self,
                            -drow*self->pixstep,
                            self->pixstep);
     
-    // this is incorrect, and not used.
-    /*
-    sum=0.0;
-    for (i=0;i<PSFEX_SIZE(self);i++) {
-        sum+=data[i];
-    }
-    */
-    // NOTE: this is not normalized to match SExtractor at the moment...
+    // NOTE: this is not normalized to match SExtractor fits at the moment...
     // This will be updated when/if SExtractor is updated...
 
     free(maskloc);
