@@ -4,7 +4,8 @@ import numpy
 
 ext=Extension("psfex._psfex_pywrap", 
               ["psfex/psfex_pywrap.c","psfex/psfex.c","psfex/poly.c"],
-              extra_compile_args = ['-std=gnu99'])
+              extra_compile_args=['-std=gnu99'],
+              include_dirs=[numpy.get_include()])
 
 exec(open('psfex/version.py').read())
 
@@ -15,5 +16,4 @@ setup(name="psfex",
       author="Erin Scott Sheldon",
       author_email="erin.sheldon@gmail.com",
       ext_modules=[ext],
-      include_dirs=numpy.get_include(),
       packages=['psfex'])
