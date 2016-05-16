@@ -167,8 +167,9 @@ void get_center(long nrow, long ncol,
     // this follows the new calculation in _psfex_rec_fill, in turn
     //   following SExtractor
     
-    dcol = col - 1 - (long) col;
-    drow = row - 1 - (long) row;
+    dcol = col - (long) col;
+    drow = row - (long) row;
+
 
     *colcen = (double) (ncol/2) + dcol;
     *rowcen = (double) (nrow/2) + drow;
@@ -442,12 +443,14 @@ void _psfex_rec_fill(const struct psfex *self,
     // following sextractor where deltax = mx - ix
     //                            mx is the center
     //                            ix is the integer (floor) center of the stamp
-    //                            and there's an extra -1 because YOLO
-    // (the -1 only shifts the cutout in the postage stamp; get_center()
-    //   tells you where the center actually is)
+    // this does not follow sextractor which has an extra -1 because YOLO
+    //   (Note that this shifts the cutout in the postage stamp; get_center()
+    //   tells you where the center actually is.  Also note that using the
+    //   -1 gives boundary problems on the reconstructed postage stamp,
+    //   which is why it has been removed for 0.3.1 -- ESR
 
-    dcol = col - 1 - (long) col;
-    drow = row - 1 - (long) row;
+    dcol = col - (long) col;
+    drow = row - (long) row;
     
     _psfex_vignet_resample(maskloc,
                            self->masksize[0],
