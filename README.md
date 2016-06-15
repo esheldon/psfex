@@ -6,16 +6,19 @@ python and C codes to interpolate and reconstruct psfex images
 using the python code
 ---------------------
 
+```python
     import psfex
 
     row=514.25
     col=610.00
     pex = psfex.PSFEx(filename)
     image = pex.get_rec(row, column)
+```
 
 using the C library
 -------------------
 
+```C
     // this version uses the fits reading
     #include "psfex.h"
     #include "psfex_fits.h"
@@ -29,6 +32,7 @@ using the C library
 
     im=psfex_image_free(im);
     psfex=psfex_free(psfex);
+```
 
 using the standalone psfex-rec code
 ----------------------------------
@@ -36,13 +40,16 @@ using the standalone psfex-rec code
 This code will write out a fits file with the PSF image in it,
 to be read by your favorite code.
 
+```bash
     psfex-rec psfex_file output_file row col
+```
 
 The image will be in output_file
 
 installation of python code
 ----------------------------
 
+```bash
     git clone https://github.com/esheldon/psfex.git
 
     cd psfex
@@ -57,10 +64,12 @@ installation of python code
     # add the /some/path/lib/python2.7/site-packages
     # directory to your PYTHONPATH (replace python2.7
     # with your python version)
+```
 
 installation of C library and standalone psfex-rec code
 ------------------------------------------------------
 
+```bash
     git clone https://github.com/esheldon/psfex.git
 
     cd psfex
@@ -77,7 +86,7 @@ installation of C library and standalone psfex-rec code
     # also /some/path/lib # directory to your LD_LIBRARY_PATH and
     # LIBRARY_PATH.  Similarly add /some/path/include
     # to C_LIBRARY_PATH and CPATH
-
+```
 
 dependencies for python library
 -------------------------------
