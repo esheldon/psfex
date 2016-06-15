@@ -83,7 +83,7 @@ dependencies for python library
 -------------------------------
 
 - numpy
-- cfitsio
+- fitsio - https://github.com/esheldon/fitsio
 
 dependencies for C library
 -------------------------------
