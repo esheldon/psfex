@@ -167,8 +167,8 @@ void get_center(long nrow, long ncol,
     // this follows the new calculation in _psfex_rec_fill, in turn
     //   following SExtractor
     
-    dcol = col - (long) col;
-    drow = row - (long) row;
+    dcol = col - (long) (col+0.5);
+    drow = row - (long) (row+0.5);
 
 
     *colcen = (double) (ncol/2) + dcol;
@@ -449,8 +449,8 @@ void _psfex_rec_fill(const struct psfex *self,
     //   -1 gives boundary problems on the reconstructed postage stamp,
     //   which is why it has been removed for 0.3.1 -- ESR
 
-    dcol = col - (long) col;
-    drow = row - (long) row;
+    dcol = col - (long) (col+0.5);
+    drow = row - (long) (row+0.5);
     
     _psfex_vignet_resample(maskloc,
                            self->masksize[0],
