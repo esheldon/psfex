@@ -2,6 +2,8 @@ import fitsio
 import numpy
 from . import _psfex_pywrap
 
+DEFAULT_EXT='psf_data'
+
 DOUBLE_DTYPE = 'f8'
 LONG_DTYPE = 'i8'
 POLY_DIM = 2
@@ -19,8 +21,19 @@ class PSFExError(Exception):
 
 
 class PSFEx(dict):
-    def __init__(self, filename):
-        self._load(filename)
+    def __init__(self, *args, **kw):
+        """
+        Load data into a PSFEx object
+
+        parameters
+        ----------
+        filename or FITS object: string, optional
+            Send filename or open fitsio FITS object
+        ext: string or int, optional
+            The extension from which to read
+        """
+
+        self.load(*args, **kw)
 
     def get_rec(self, row, col):
         """
@@ -53,19 +66,34 @@ class PSFEx(dict):
         sigma = fwhm/fac
         return sigma
 
-    def _load(self, filename):
+    def load(self, arg, **kw):
         """
-        Load the PSF information from the fits file
+        Load data into a PSFEx object
 
-        Also load the C PSFEx object
+        parameters
+        ----------
+        filename or FITS object: string, optional
+            Send filename or open fitsio FITS object
+        ext: string or int, optional
+            The extension from which to read
         """
 
-        self['filename'] = filename
-        with fitsio.FITS(filename) as fits:
-            psf_mask=fits['psf_data']['psf_mask'][:]
-            psf_mask=numpy.array(psf_mask, dtype=DOUBLE_DTYPE)
+        if isinstance(arg, fitsio.FITS):
+            self._load_from_fits(arg, **kw)
+        else:
+            self['filename'] = arg
+            with fitsio.FITS(arg) as fits:
+                self._load_from_fits(fits, **kw)
+ 
+    def _load_from_fits(self, fits, ext=DEFAULT_EXT):
 
-            h=fits['psf_data'].read_header()
+        hdu = fits[ext]
+
+        psf_mask=hdu['psf_mask'][:]
+
+        psf_mask=numpy.array(psf_mask, dtype=DOUBLE_DTYPE)
+
+        h=hdu.read_header()
 
         self._psf_mask=psf_mask
 
@@ -100,4 +128,5 @@ class PSFEx(dict):
                                           self['contextscale'],
                                           self['psf_samp'],
                                           self._psf_mask)
-     
+ 
+       
