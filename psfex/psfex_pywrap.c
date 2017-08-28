@@ -14,7 +14,12 @@ static void
 PyPSFExObject_dealloc(struct PyPSFExObject* self)
 {
     self->psfex = psfex_free(self->psfex);
+
+#if PY_MAJOR_VERSION >= 3
+    Py_TYPE(self)->tp_free((PyObject*)self);
+#else
     self->ob_type->tp_free((PyObject*)self);
+#endif
 }
 
 // do type checking in python!
@@ -77,7 +82,11 @@ PyPSFExObject_init(struct PyPSFExObject* self, PyObject *args)
 
 static PyObject *
 PyPSFExObject_repr(struct PyPSFExObject* self) {
+#if PY_MAJOR_VERSION >= 3
+    return PyUnicode_FromString("");
+#else
     return PyString_FromString("");
+#endif
 }
 
 
@@ -147,8 +156,12 @@ static PyMethodDef PyPSFExObject_methods[] = {
 
 
 static PyTypeObject PyPSFExType = {
+#if PY_MAJOR_VERSION >= 3
+    PyVarObject_HEAD_INIT(NULL, 0)
+#else
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
+#endif
     "_psfex_pywrap.PSFEx",             /*tp_name*/
     sizeof(struct PyPSFExObject), /*tp_basicsize*/
     0,                         /*tp_itemsize*/
@@ -197,23 +210,68 @@ static PyMethodDef PSFEx_type_methods[] = {
 };
 
 
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "_psfex_pywrap",      /* m_name */
+        "Define PSFEx type and methods.",  /* m_doc */
+        -1,                  /* m_size */
+        PSFEx_type_methods,    /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+#endif
+
+
+
 #ifndef PyMODINIT_FUNC  /* declarations for DLL import/export */
 #define PyMODINIT_FUNC void
 #endif
 PyMODINIT_FUNC
+#if PY_MAJOR_VERSION >= 3
+PyInit__psfex_pywrap(void) 
+#else
 init_psfex_pywrap(void) 
+#endif
 {
     PyObject* m;
 
     PyPSFExType.tp_new = PyType_GenericNew;
+
+#if PY_MAJOR_VERSION >= 3
+    if (PyType_Ready(&PyPSFExType) < 0) {
+        return NULL;
+    }
+
+    m = PyModule_Create(&moduledef);
+    if (m==NULL) {
+        return NULL;
+    }
+
+
+#else
     if (PyType_Ready(&PyPSFExType) < 0)
         return;
 
-    m = Py_InitModule3("_psfex_pywrap", PSFEx_type_methods, "Define PSFEx type and methods.");
+    m = Py_InitModule3("_psfex_pywrap",
+                       PSFEx_type_methods,
+                       "Define PSFEx type and methods.");
+    if (m==NULL) {
+        return;
+    }
+#endif
+
 
     Py_INCREF(&PyPSFExType);
     PyModule_AddObject(m, "PSFEx", (PyObject *)&PyPSFExType);
 
     import_array();
+
+#if PY_MAJOR_VERSION >= 3
+    return m;
+#endif
+
 }
 
