@@ -102,6 +102,8 @@ struct psfex_image *psfex_image_new(long nrow, long ncol)
 }
 struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data)
 {
+    size_t i=0;
+
     struct psfex_image *self=calloc(1, sizeof(struct psfex_image));
     if (!self) {
         fprintf(stderr,"Could not allocate struct psfex_image\n");
@@ -127,7 +129,7 @@ struct psfex_image *_psfex_image_new(long nrow, long ncol, int alloc_data)
             exit(1);
         }
 
-        for(long i = 1; i < self->nrow; i++) {
+        for(i = 1; i < self->nrow; i++) {
             self->rows[i] = self->rows[i-1] + self->ncol;
         }
         self->is_owner=1;
@@ -497,6 +499,7 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
                                     double col)
 {
     long nrow=0, ncol=0;
+    size_t i=0;
     double *data=psfex_recp(self, row, col, &nrow, &ncol);
 
     // 0 means don't allocate the data
@@ -504,7 +507,7 @@ struct psfex_image *psfex_rec_image(const struct psfex *self,
 
     im->rows[0] = data;
 
-    for(long i = 1; i < im->nrow; i++) {
+    for(i = 1; i < im->nrow; i++) {
         im->rows[i] = im->rows[i-1] + im->ncol;
     }
     im->is_owner=1;
