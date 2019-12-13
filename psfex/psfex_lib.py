@@ -128,5 +128,17 @@ class PSFEx(dict):
                                           self['contextscale'],
                                           self['psf_samp'],
                                           self._psf_mask)
- 
-       
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['_psfex']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._psfex = _psfex_pywrap.PSFEx(self['masksize'],
+                                          self['poldeg'],
+                                          self['contextoffset'],
+                                          self['contextscale'],
+                                          self['psf_samp'],
+                                          self._psf_mask)
